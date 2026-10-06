@@ -112,6 +112,11 @@ def get_veff(ks, mol=None, dm=None, dm_last=None, vhf_last=None, hermi=1):
                 # K follows XC back to FP64 from this call on
                 k_prec, rebuild = mp_state.xc_fell_back()
                 full_rebuild = full_rebuild or rebuild
+        if res is None and mp_state is not None:
+            # FP64 XC on the SCF's cached AO blocks; bitwise ni.nr_rks
+            from gpu4pyscf.dft import mixed_precision
+            res = mixed_precision.nr_rks_fp64_cached(
+                mp_state, ni, mol, ks.grids, ks.xc, dm)
         if res is None:
             res = ni.nr_rks(mol, ks.grids, ks.xc, dm)
         n, exc, vxc = res
