@@ -372,6 +372,11 @@ class _DFHF:
                             # call on, and K follows it. J/K are built from
                             # the full density here, so no rebuild is needed.
                             k_prec, _ = mp_state.xc_fell_back()
+                if res is None and mp_state is not None:
+                    # FP64 XC on the SCF's cached AO blocks; bitwise ni.nr_rks
+                    from gpu4pyscf.dft import mixed_precision
+                    res = mixed_precision.nr_rks_fp64_cached(
+                        mp_state, ni, mol, self.grids, self.xc, dm)
                 if res is None:
                     res = ni.nr_rks(mol, self.grids, self.xc, dm)
                 n, exc, vxc = res
