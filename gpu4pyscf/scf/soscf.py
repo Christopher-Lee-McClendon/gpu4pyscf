@@ -602,6 +602,12 @@ class _CIAH_SOSCF:
     reset = _SOSCF_cpu.reset
 
     def kernel(self, mo_coeff=None, mo_occ=None, dm0=None):
+        if getattr(self, 'mixed_precision', None) is not None:
+            # gpu4pyscf.dft.mixed_precision is driven by hf.scf, which this
+            # kernel does not run through; refuse rather than run FP64 silently
+            raise NotImplementedError(
+                'mixed_precision is not supported with the second-order (newton) '
+                'solver; unset mf.mixed_precision')
         if mo_coeff is None: mo_coeff = self.mo_coeff
         if mo_occ is None: mo_occ = self.mo_occ
         cput0 = logger.init_timer(self)
