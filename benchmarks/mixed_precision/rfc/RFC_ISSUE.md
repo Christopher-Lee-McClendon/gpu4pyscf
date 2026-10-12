@@ -2,7 +2,6 @@
 STAGING FILE: the text of a GitHub issue for pyscf/gpu4pyscf. Not yet posted. Open this issue
 first and wait for maintainer feedback before any PR (see CHECKLIST.md). Every number below is
 checked against the evidence package by `python3 benchmarks/mixed_precision/rfc/verify_rfc.py`.
-Lines marked UPDATE-AFTER-R5 quote the code branch at `4d2f3de` and change at the next validation.
 -->
 
 # RFC: opt-in mixed-precision SCF for density-fitted RKS on FP64-limited GPUs
@@ -17,8 +16,8 @@ the result must still be an FP64 SCF, with stock convergence and stock gradients
 We have an implementation on a fork and would like to know whether the maintainers want it, and
 in what shape, before opening a PR. The code is
 [`chris-lee-mc/gpu4pyscf@mixed-precision-upstream`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream)
-(four commits on master `c1a6e37`; +2931/−39 over nine files, of which the first PR we would
-propose is +928/−17 over five). <!-- UPDATE-AFTER-R5 --> The evidence package is
+(four commits on master `e1020c3`; +3054/−39 over ten files, of which the first PR we would
+propose is +1033/−17 over six). The evidence package is
 [`chris-lee-mc/gpu4pyscf@mixed-precision-rfc-package-v2`, `benchmarks/mixed_precision/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-rfc-package-v2/benchmarks/mixed_precision):
 its `native/verify_native.py` recomputes every number quoted here from the per-run data, and its
 `README.md` documents the API, the refusals and the VV10 and AO-cache details left out here.
@@ -47,10 +46,10 @@ wrapper's precision parameters; the policy could take a `__config__` default the
 Unsupported configurations are refused with `NotImplementedError` at `kernel()`, never silently:
 UKS/ROKS/GKS and spin ≠ 0; multi-GPU; the second-order solver (`mf.newton()`); with `xc`/`k`,
 range-separated and NLC functionals; `k` without density fitting or on a functional without exact
-exchange; with `vv10`, a functional without exactly one VV10 term. The 50 tests are unmarked, skip
+exchange; with `vv10`, a functional without exactly one VV10 term. The 56 tests are unmarked, skip
 on multi-GPU hosts (`num_devices > 1`, upstream's pattern; the refusal is tested with a patched
-device count), and pass on a V100 with upstream's single-GPU CI package set (libxc 0.9.0, 133 s)
-and under pyscf 2.8. <!-- UPDATE-AFTER-R5 -->
+device count), and pass on a V100 with upstream's single-GPU CI package set (libxc 0.9.0, 136 s)
+and under pyscf 2.8.
 
 ## How precision is controlled
 
@@ -129,11 +128,12 @@ not proposed; it never fired, so that arm's steps and cycles equal the plain arm
 plain arm's first SCF paid the driver JIT in one cell. Where the plain arm is valid it reads 1.16
 (paracetamol B3LYP) and 1.27 (celecoxib r2SCAN).
 
-**Correctness of the master-based branch** (fork `4d2f3de` on `c1a6e37`, built from source, three
+**Correctness of the master-based branch** (fork `d642f3d` on `e1020c3`, built from source, three
 profiles; `validation/` in the package): upstream `test_df_rks`, `test_df_jk`, `test_rks` and
-`test_scf` give 44 passed and 1 skipped on master and the same on the branch, at the lock's pins and
-under pyscf 2.8; the 50 new tests pass on all three profiles; stock vs mixed on three molecules
-agrees to \|ΔE\| ≤ 5.9e-12 Ha with identical cycle counts. <!-- UPDATE-AFTER-R5 -->
+`test_scf` give 44 passed and 1 skipped on master and the same on the branch, at the lock's pins,
+under pyscf 2.8 and on the V100; the 56 new tests pass on all three profiles; stock vs mixed on
+three molecules agrees to \|ΔE\| ≤ 5.9e-12 Ha (5.0e-12 Ha under pyscf 2.8) with identical cycle
+counts.
 
 ## What is not claimed
 
@@ -156,11 +156,11 @@ agrees to \|ΔE\| ≤ 5.9e-12 Ha with identical cycle counts. <!-- UPDATE-AFTER-
 2. **Device guard.** On the H100 and A100 the FP32 switch is slower than stock. Should the mode
    warn or refuse by compute capability (sm_80/sm_90 class), or only document it? We have no
    measured threshold to gate on.
-3. **Scope of a first PR.** XC + K alone (+928/−17, five files, 22 tests; applies on master alone),
+3. **Scope of a first PR.** XC + K alone (+1033/−17, six files, 27 tests; applies on master alone),
    with the VV10 component (two NVRTC `cupy.RawModule` kernels and the two `numint` keywords) and
    the FP64 AO cache as follow-ups? The cache commit applies cleanly only after VV10 and would be
    re-authored if you want it second. XC + K alone gives the no-cache readings above (1.63 r2SCAN,
-   1.95 B3LYP on the unpruned grid; 1.58 and 1.64 at the defaults). <!-- UPDATE-AFTER-R5 -->
+   1.95 B3LYP on the unpruned grid; 1.58 and 1.64 at the defaults).
 4. **Convergence contract.** Is "two consecutive FP64 iterations before convergence is accepted",
    enforced in `scf._kernel`, acceptable there, or should it live in the RKS classes? The
    alternative is question 0's parity call, with the policy installing `mf.check_convergence`.

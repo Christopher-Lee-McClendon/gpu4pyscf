@@ -33,19 +33,21 @@ and the code does not detect that device class; see Limitations.
 
 ## Reviewer's guide
 
-Read in this order. Diff: +2931 / −39 over nine files, of which +2070 / −39 is code outside the
-tests and README. <!-- UPDATE-AFTER-R5: the diff totals and every per-file numstat below -->
+Read in this order. Diff: +3054 / −39 over ten files in four commits (`9b129af` XC + K, `301cfe9`
+VV10, `5e81866` AO cache, `d642f3d` docstring and README), of which +2115 / −39 is code outside the
+tests and README.
 
 | order | file | what it does |
 |---|---|---|
-| 1 | `gpu4pyscf/dft/mixed_precision.py` (new, +963) | `MixedPrecision` policy; `PhaseController` (one-way switch on an energy trace); `check_supported` (every refusal); `_SCFState` (per-iteration protocol `begin_call` / `end_call`, the clean-streak that defines the FP64 tail, `k_scope`, the record); `begin` / `end` (lifecycle, VV10 certificate); the AO cache (`_build_ao_cache`, tiers decided from predicted size); `nr_rks_fp32` (FP32 rho/vxc, FP64 promotion per block) and `nr_rks_fp64_cached` (the statements of `numint.nr_rks` / `_nr_rks_task` on cached FP64 blocks, bitwise stock) |
+| 1 | `gpu4pyscf/dft/mixed_precision.py` (new, +993) | `MixedPrecision` policy; `PhaseController` (one-way switch on an energy trace); `check_supported` (every refusal); `_SCFState` (per-iteration protocol `begin_call` / `end_call`, the clean-streak that defines the FP64 tail, `k_scope`, the record); `begin` / `end` (lifecycle, VV10 certificate); the AO cache (`_build_ao_cache`, tiers decided from predicted size); `nr_rks_fp32` (FP32 rho/vxc, FP64 promotion per block) and `nr_rks_fp64_cached` (the statements of `numint.nr_rks` / `_nr_rks_task` on cached FP64 blocks, bitwise stock) |
 | 2 | `gpu4pyscf/scf/hf.py` (+41 / −12) | `scf()` opens the state (`mixed_precision.begin`) before `_kernel` and closes it after (`end`, which certifies VV10; `end(failed=True)` on an exception). `_kernel`: when the convergence tests are met without an FP64 tail, forces the switch and continues; raises if no `get_veff` ever reported to the policy (an unsupported `get_veff` override) |
-| 3 | `gpu4pyscf/df/df_jk.py` (+77 / −3) | `_DFHF.get_veff` (RHF branch): `begin_call`, FP32 or cached-FP64 XC, `k_scope` around `get_jk`, `vv10_kernel=` to `nr_nlc_vxc`, `end_call`. `get_jk`: the FP32 K path (`_k_block_fp32`: FP32 half-transform in the FP64 `rhok` buffer, `cderi` cast in aux-index chunks, FP64 accumulator), taken only when `dfobj._k_precision == 'fp32'` for the plain `omega=0`, mode-0 case |
-| 4 | `gpu4pyscf/dft/rks.py` (+45 / −4) | `get_veff` (non-DF): the same protocol; on the first FP64 K iteration after FP32 K it drops `vj_last` so J is rebuilt from the full density (a guard: FP32 K is refused without DF). `KohnShamDFT`: `mixed_precision = None` and `mixed_precision_record = None` class attributes and two `_keys` entries |
-| 5 | `gpu4pyscf/dft/numint.py` (+29 / −20) | `_vv10nlc(..., uwe_kernel=None)` and `nr_nlc_vxc(..., vv10_kernel=None)`: with `None` the stock statements run unchanged |
-| 6 | `gpu4pyscf/dft/vv10_mixed.py` (new, +915) | FP32 and df64 VV10 U/W/E kernels (NVRTC via `cupy.RawModule`, no fast-math), bound once per device after a forced probe; `uwe_stock`; `certify` |
-| 7 | `gpu4pyscf/dft/tests/test_mixed_precision.py` (32 tests), `test_mixed_precision_vv10.py` (18 tests) <!-- UPDATE-AFTER-R5 --> | below |
-| 8 | `README.md` | one line under experimental features |
+| 3 | `gpu4pyscf/scf/soscf.py` (+6, first commit) | `_CIAH_SOSCF.kernel`: refuses with `NotImplementedError` when `mixed_precision` is set (the second-order solver bypasses `scf()`, where the policy is opened) |
+| 4 | `gpu4pyscf/df/df_jk.py` (+80 / −3) | `_DFHF.get_veff` (RHF branch): `begin_call`, FP32 or cached-FP64 XC, `k_scope` around `get_jk`, `vv10_kernel=` to `nr_nlc_vxc`, `end_call`. `get_jk`: the FP32 K path (`_k_block_fp32`: FP32 half-transform in the FP64 `rhok` buffer, `cderi` cast in aux-index chunks, FP64 accumulator), taken only when `dfobj._k_precision == 'fp32'` for the plain `omega=0`, mode-0 case |
+| 5 | `gpu4pyscf/dft/rks.py` (+51 / −4) | `get_veff` (non-DF): the same protocol; on the first FP64 K iteration after FP32 K it drops `vj_last` so J is rebuilt from the full density (a guard: FP32 K is refused without DF). `KohnShamDFT`: `mixed_precision = None` and `mixed_precision_record = None` class attributes and two `_keys` entries |
+| 6 | `gpu4pyscf/dft/numint.py` (+29 / −20) | `_vv10nlc(..., uwe_kernel=None)` and `nr_nlc_vxc(..., vv10_kernel=None)`: with `None` the stock statements run unchanged |
+| 7 | `gpu4pyscf/dft/vv10_mixed.py` (new, +915) | FP32 and df64 VV10 U/W/E kernels (NVRTC via `cupy.RawModule`, no fast-math), bound once per device after a forced probe; `uwe_stock`; `certify` |
+| 8 | `gpu4pyscf/dft/tests/test_mixed_precision.py` (new, +555, 38 tests), `test_mixed_precision_vv10.py` (new, +383, 18 tests) | below |
+| 9 | `README.md` (+1) | one line under experimental features |
 
 **Default-off guarantee.** With `mf.mixed_precision` unset, `scf()` finds no policy and runs the
 same `_kernel` calls as before (inside a `try` that only adds cleanup); `get_veff` sees
@@ -135,34 +137,36 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
 
 ## Test plan
 
-- **New tests, 50** (`dft/tests/test_mixed_precision.py`, 32; `test_mixed_precision_vv10.py`, 18):
-  <!-- UPDATE-AFTER-R5: test counts; add the newton() and non-hybrid k refusals and the record default -->
-  the default is `None` and an all-off policy is stock; enabled vs stock at r2SCAN, PBE, B3LYP,
+- **New tests, 56** (`dft/tests/test_mixed_precision.py`, 38; `test_mixed_precision_vv10.py`, 18):
+  the default is `None`, the record is `None` before `kernel()`, and an all-off policy is stock; enabled vs stock at r2SCAN, PBE, B3LYP,
   K-only, and XC without DF (\|ΔE\| ≤ 1e-8 Ha, cycles ±1, an FP64 tail, FP32 really used); against
   CPU PySCF; the convergence guard with every other trigger disabled (a forced switch); each
-  refusal, including multi-GPU with a patched device count; the memory fallback; scanner geometry
+  refusal, including multi-GPU with a patched device count, `mf.newton()` with a policy set and
+  `k=True` on a functional without exact exchange; the memory fallback, with K held at FP64 when XC
+  falls back; scanner geometry
   change and state cleared after `kernel()`; the FP32 XC and chunked FP32 K kernels against their
   FP64 counterparts; the FP64 AO cache (bitwise stock for LDA/GGA/meta-GGA, tiers, invalidation,
   empty-block refusal, opt-in default); the VV10 kernels per point against stock `_vv10nlc`, the
   df64 tail, the certificate (including a perturbed result that must fail it), an SCF that raises,
   and the all-off policy.
-- **GPU validation of this branch (`4d2f3de`) on master `c1a6e37`** (`g4psrc r4`, three profiles;
+- **GPU validation of this branch (`d642f3d`) on master `e1020c3`** (`g4psrc r5`, three profiles;
   gpu4pyscf built from source each time, the released wheel removed, each tree importing itself):
-  <!-- UPDATE-AFTER-R5: branch SHA, run ids, test counts and |dE| figures of the three profiles -->
-  - **`pro6000-lock`** (engine-repo run `38022477235`; sm_120, one RTX PRO 6000 Blackwell, the
+  - **`pro6000-lock`** (engine-repo run `38198811227`; sm_120, one RTX PRO 6000 Blackwell, the
     validation lock's pins): upstream `df/tests/test_df_rks.py`, `df/tests/test_df_jk.py`,
     `dft/tests/test_rks.py`, `scf/tests/test_scf.py` give **44 passed, 1 skipped on master, and
-    the same on this branch**; the new tests **50/50**; the VV10 kernels bitwise identical on the
+    the same on this branch**; the new tests **56/56**; the VV10 kernels bitwise identical on the
     GPU to their NumPy emulations; stock vs mixed on paracetamol, propranolol and celecoxib
-    **\|ΔE\| ≤ 5.9e-12 Ha with identical cycle counts** and an FP64 tail in every run;
-  - **`pro6000-pyscf28`** (run `38023769024`; the same card, upstream's `requirements.txt` then
+    **\|ΔE\| ≤ 5.9e-12 Ha with identical cycle counts**, an FP64 tail in every run and the VV10
+    certificate in band in all three wB97M-V runs;
+  - **`pro6000-pyscf28`** (run `38201109296`; the same card, upstream's `requirements.txt` then
     **pyscf 2.8**, the multi-GPU CI job's pin): the same gates, 44 passed + 1 skipped on both trees,
-    50/50, **\|ΔE\| ≤ 2.7e-12 Ha**;
-  - **`v100-ci`** (run `38024957471`; **one Tesla V100, sm_70**, built from source for sm_70,
+    56/56 in 123 s, **\|ΔE\| ≤ 5.0e-12 Ha** with identical cycle counts;
+  - **`v100-ci`** (run `38200149447`; **one Tesla V100, sm_70**, built from source for sm_70,
     upstream's `requirements.txt` then **libxc 0.9.0**, the single-GPU CI job's set): regression
-    files, new tests (**50/50 in 133 s**) and VV10 bitwise identity pass; the three-molecule
-    comparison was not run there (its bands are banked on the PRO 6000).
-- Earlier validations (r1–r3 on earlier master commits, and the same code overlaid on the v1.8.1
+    files (44 passed + 1 skipped on both trees), new tests (**56/56 in 136 s**) and VV10 bitwise
+    identity pass; the three-molecule comparison was not run there (its bands are banked on the
+    PRO 6000).
+- Earlier validations (r1–r4 on earlier heads and master commits, and the same code overlaid on the v1.8.1
   wheel; `benchmarks/mixed_precision/validation/`) passed the same gates. A multi-GPU host, scipy
   1.17 and upstream's full suite were not run.
 
@@ -174,12 +178,12 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
   patched device count, so it runs on any host.
 - **V100 job.** sm_70 needs nothing special: the VV10 kernels are NVRTC `cupy.RawModule`s with
   `--std=c++14` and no `__CUDA_ARCH__` branching (intrinsics `__fadd_rn`, `__fsub_rn`,
-  `__fmul_rn`, `__syncthreads`, `__longlong_as_double`). On one V100 the 50 tests take 133 s
-  serially, the slowest 18.3 s (`test_vv10_paracetamol`) and 17.5 s
-  (`test_kernels_against_stock_vv10nlc`), both VV10; the rest are under 12 s each. The XC/K tests
+  `__fmul_rn`, `__syncthreads`, `__longlong_as_double`). On one V100 the 56 tests take 136 s
+  serially, the slowest 18.4 s (`test_vv10_paracetamol`) and 16.9 s
+  (`test_kernels_against_stock_vv10nlc`), both VV10; the rest are under 11 s each. The XC/K tests
   all run paracetamol def2-mTZVPP on an unpruned level-3 grid with `conv_tol = 1e-10`; only the
   tests that assert the FP32-phase length need that, and the others could move to the default
-  pruned grid. We would also trim the two VV10 tests if `--durations` flags them. <!-- UPDATE-AFTER-R5 -->
+  pruned grid. We would also trim the two VV10 tests if `--durations` flags them.
 - **Pins.** Passes under pyscf 2.8 and under libxc 0.9.0 (above). scipy 1.17 was not tested.
 
 ## Limitations

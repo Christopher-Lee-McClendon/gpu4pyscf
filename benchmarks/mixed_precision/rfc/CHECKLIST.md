@@ -3,15 +3,15 @@
 For the person who will post. Nothing in this directory has been posted. The order matters:
 **the issue first, the PR only after the maintainers have answered.**
 
-State of play (updated 2026-10-10):
+State of play (updated 2026-10-12):
 
 | item | value |
 |---|---|
-| code branch | `chris-lee-mc/gpu4pyscf@mixed-precision-upstream`, head `4d2f3de4c244a6f11debbf44e17d61900c845fc6`, four commits (`920bf64`, `39300f2`, `9755115`, `4d2f3de`) on upstream master `c1a6e371d1a46afc9932c618108a4bc70e895edf` <!-- UPDATE-AFTER-R5 --> |
-| pending on the code branch (not yet validated; "r5") | `mf.newton()` with a policy set refuses (`NotImplementedError`); `k=True` on a functional without exact exchange refuses (was a silent no-op); `mf.mixed_precision_record` defaults to `None`; with `xc` and `k` both on, K is held at FP64 whenever XC falls back to FP64. The staged texts already describe this behaviour; every place that quotes the head SHA, a test count, a numstat or an r4 result still quotes `4d2f3de` and is marked `<!-- UPDATE-AFTER-R5 -->` (`git grep -n UPDATE-AFTER-R5 -- benchmarks/mixed_precision/rfc`). After r5: update those, add the new run ids and counts to `verify_rfc.py`'s `ALLOWLIST`, re-run it, and remove the markers |
+| code branch | `chris-lee-mc/gpu4pyscf@mixed-precision-upstream`, head `d642f3da971650d24dc147e212ce932d03757811`, four commits (`9b129af` XC + K, `301cfe9` VV10, `5e81866` AO cache, `d642f3d` docstring and README; +3054/−39 over ten files) on upstream master `e1020c32ae789cd8218c333e1ee2fc74348a9841` |
+| review fixes on the code branch (validated by r5) | copyright `2026` on the four new files; `mf.newton()` with a policy set refuses (`NotImplementedError`, `scf/soscf.py`); `k=True` on a functional without exact exchange refuses (was a silent no-op); `mf.mixed_precision_record` defaults to `None`; with `xc` and `k` both on, K is held at FP64 whenever XC falls back to FP64; six new tests (56 in all: 38 + 18) |
 | evidence package | `chris-lee-mc/gpu4pyscf@mixed-precision-rfc-package-v2`, `benchmarks/mixed_precision/` |
-| last GPU validation of the code branch | g4psrc r4, engine-repo runs `38022477235` (`pro6000-lock`), `38023769024` (`pro6000-pyscf28`) and `38024957471` (`v100-ci`), on master `c1a6e37`, from source for sm_120 and sm_70: PASS (`validation/VALIDATION-g4psrc.md`) |
-| earlier heads, kept as branches | `mixed-precision-upstream-on-eef5f5b` (r1), `mixed-precision-upstream-on-82bc702` (r2), `mixed-precision-upstream-on-c1a6e37` (r3, `ac4c668e`) |
+| last GPU validation of the code branch | g4psrc r5, engine-repo runs `38198811227` (`pro6000-lock`), `38201109296` (`pro6000-pyscf28`) and `38200149447` (`v100-ci`), on master `e1020c3`, from source for sm_120 and sm_70: PASS (`validation/VALIDATION-g4psrc.md`, `g4psrc_r5_*.json`). The pre-review head `3d9de5d` passed run `38194143624` and is superseded |
+| earlier heads, kept as branches | `mixed-precision-upstream-on-e1020c3-prereview` (`3d9de5d`), `mixed-precision-upstream-on-c1a6e37-r4` (r4, `4d2f3de`), `mixed-precision-upstream-on-c1a6e37` (r3, `ac4c668e`), `mixed-precision-upstream-on-82bc702` (r2), `mixed-precision-upstream-on-eef5f5b` (r1) |
 
 ## 1. Base: re-verify, rebase if needed, re-validate
 
@@ -27,9 +27,22 @@ State of play (updated 2026-10-10):
       `RFC_ISSUE.md` and `verify_rfc.py` cite r4.
 - [x] `validation/VALIDATION-g4psrc.md` with `g4psrc_r2.json`, `g4psrc_r3.json` and the three
       `g4psrc_r4_*.json` records added; `VALIDATION-vv10.md`'s "not validated" line points to it.
-- [ ] Immediately before posting: `git fetch upstream && git log --oneline c1a6e37..upstream/master`.
-      If the list is non-empty, rebase again, re-run g4psrc (the engine repo pins `BASE_SHA` in
-      `.github/scripts/runpod_g4psrc.py`, with a dated section in the port plan before dispatch),
+- [x] Base re-verified on 2026-10-12: upstream master was `e1020c3` (five commits past `c1a6e37`,
+      none touching the branch's files; #960 makes `test_nr_coach` skip on older pyscf / libxc).
+      Rebased onto it with the review fixes (head `d642f3d`).
+- [x] Review fixes (newton refusal, non-hybrid `k` refusal, record default `None`, K held at FP64
+      on an XC fallback, six new tests, copyright `2026`) re-validated as g4psrc r5 on three
+      profiles: `pro6000-lock` (run `38198811227`: 44 passed + 1 skipped on both trees, 56/56 in
+      136 s, trio \|ΔE\| ≤ 5.9e-12 Ha with identical cycles, VV10 certificate ok ×3),
+      `pro6000-pyscf28` (run `38201109296`: the same gates, 56/56 in 123 s, \|ΔE\| ≤ 5.0e-12 Ha)
+      and `v100-ci` (run `38200149447`: libxc 0.9.0, 44 passed + 1 skipped on both trees, 56/56 in
+      136 s, slowest 18.4 s and 16.9 s, VV10 bitwise identity; no trio). The superseded pre-review
+      run `38194143624` (`3d9de5d`) is recorded as such. `validation/g4psrc_r5_*.json` added;
+      `PR_BODY.md`, `RFC_ISSUE.md` and `verify_rfc.py` cite r5.
+- [ ] Immediately before posting: `git fetch upstream && git log --oneline e1020c3..upstream/master`
+      (this was `c1a6e37..upstream/master` before r5). If the list is non-empty, rebase again,
+      re-run g4psrc (the engine repo pins `BASE_SHA` in `.github/scripts/runpod_g4psrc.py`, with a
+      dated section in the port plan before dispatch),
       update the run id, base and numbers in `PR_BODY.md` and `RFC_ISSUE.md`, add them to
       `verify_rfc.py`'s `ALLOWLIST`, and re-run it.
 
@@ -46,19 +59,19 @@ flake8 --config .flake8 gpu4pyscf
 
 - [x] All three clean on the whole `gpu4pyscf` tree at `ac4c668e` (ruff 0.15, flake8 7.3.0), and
       again at `4d2f3de4` after the tests-only change (ruff 0.15.0, flake8 7.3.0, from a
-      `git archive` of that commit).
+      `git archive` of that commit), and at `d642f3da` after the review fixes (ruff 0.15.0,
+      flake8 7.4.1, from a `git archive` of that commit).
 - [ ] Re-run if the branch changes again.
 
 ## 3. Licence headers and CLA
 
 - [ ] Upstream has no CLA file and `CONTRIBUTING.md` mentions none. Watch for a CLA bot on the PR.
-- [ ] Every file upstream carries the Apache-2.0 header `# Copyright <years> The PySCF Developers.
-      All Rights Reserved.` The four new files on the branch carry it with `2021-2026` (still so at `4d2f3de4`). Files added
-      to upstream in 2026 (for example `gpu4pyscf/df/tests/test_df_ao2mo.py`,
-      `gpu4pyscf/pbc/dft/gks.py`) use `# Copyright 2026 The PySCF Developers`. **Mismatch to
-      decide:** either leave `2021-2026` (the existing edited files use `2021-2024` or
-      `2021-2026`) or change the four new files to `2026`. This checklist does not edit the code
-      branch; make the change there if you want it, then re-run lint and g4psrc.
+- [x] Every file upstream carries the Apache-2.0 header `# Copyright <years> The PySCF Developers.
+      All Rights Reserved.` Files added to upstream in 2026 (for example
+      `gpu4pyscf/df/tests/test_df_ao2mo.py`, `gpu4pyscf/pbc/dft/gks.py`) use `# Copyright 2026 The
+      PySCF Developers`. The four new files on the branch carried `2021-2026` up to `4d2f3de4`;
+      they carry `2026` at `d642f3da` (the existing edited files keep their own years). Lint and
+      g4psrc r5 were re-run after the change.
 - [ ] `CONTRIBUTING.md` asks for sm_70 compatibility and for tests against CPU PySCF values. The
       VV10 kernels are NVRTC-compiled C++14 (`cupy.RawModule`, options `--std=c++14`, no fast
       math); the only device intrinsics in `vv10_mixed.py` are `__fadd_rn`, `__fsub_rn`,
@@ -74,13 +87,13 @@ flake8 --config .flake8 gpu4pyscf
       `rfc/RFC_ISSUE.md`. Delete it from the package branch before posting if you prefer.
 - [x] `README.md` now says 46 pods (44 plus PREREG-9's LD1 and LD2), matching `native/README.md`
       and `native/SOURCES.md`.
-- [x] The `mixed_precision.py` docstring (amended into the fourth commit, now `4d2f3de4`) now gives
-      CLAIMS C3's figures (wB97M-V 1.6–2× slower; H100 B3LYP neutral to about 1.1× slower; A100
+- [x] The `mixed_precision.py` docstring (amended into the fourth commit, then `4d2f3de4`, now
+      `d642f3d`) now gives CLAIMS C3's figures (wB97M-V 1.6–2× slower; H100 B3LYP neutral to about 1.1× slower; A100
       11 of 12 clean cells neutral or slower), and says K is held to XC's switch only when `xc` and
       `k` are both on.
 - [ ] The usage snippet in that docstring uses `gpu4pyscf.dft.RKS` (a factory function in
-      `gpu4pyscf/dft/__init__.py` on `c1a6e37`); the tests and `rfc/` use `gpu4pyscf.dft.rks.RKS`.
-      Both resolve; no action unless the rebase changes `dft/__init__.py`.
+      `gpu4pyscf/dft/__init__.py` on `c1a6e37` and `e1020c3`); the tests and `rfc/` use
+      `gpu4pyscf.dft.rks.RKS`. Both resolve; no action unless the rebase changes `dft/__init__.py`.
 - [ ] **Engine-repo erratum to file (not done here).** `native/prereg/PREREG-rfcbench-9-library-defaults.md`
       line 3 still reads "PRE-REGISTERED, not yet run" although its RESULT is appended (from line
       275). `native/prereg/` is a byte-identical mirror of the engine repository's protocols, so it
@@ -162,9 +175,9 @@ flake8 --config .flake8 gpu4pyscf
       re-run lint and the GPU validation, and update `PR_BODY.md` and `verify_rfc.py` to match.
 - [ ] Open the PR from `mixed-precision-upstream` (rebased) against `pyscf/gpu4pyscf:master` with
       the body of `PR_BODY.md`, `#<issue>` filled in, and the HTML comment removed. Upstream has no
-      PR template. The code branch contains only the nine files in the reviewer's guide; the
+      PR template. The code branch contains only the ten files in the reviewer's guide; the
       evidence package stays on the fork's package branch and is linked, not included.
-- [ ] If the maintainers asked for XC + K only, drop the VV10 commit (`39300f2`) and the AO-cache
-      commit (`9755115`) from the PR branch, remove the VV10 section and the AO-cache rows from
+- [ ] If the maintainers asked for XC + K only, drop the VV10 commit (`301cfe9`) and the AO-cache
+      commit (`5e81866`) from the PR branch, remove the VV10 section and the AO-cache rows from
       `PR_BODY.md`, and re-run `verify_rfc.py` (its `BOUND` table will then need the VV10 and
       cache entries removed, which is deliberate: every edit to a number goes through the checker).

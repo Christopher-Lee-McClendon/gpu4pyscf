@@ -164,58 +164,61 @@ BOUND = {
 # not of the benchmark data. Each with its source. Nothing else is allowed outside CLAIMS.md and
 # the verifier's recomputed values.
 ALLOWLIST = {
-    # gpu4pyscf/dft/mixed_precision.py @ 4d2f3de4: MixedPrecision defaults and module constants
+    # gpu4pyscf/dft/mixed_precision.py @ d642f3da: MixedPrecision defaults and module constants
     "1e-3": "mixed_precision.py: XC_SWITCH_TOL = K_SWITCH_TOL = 1e-3",
     "2": "mixed_precision.py: SWITCH_STALL = 2; also 'two consecutive iterations' (fp64_tail); '2×T4'",
     "30": "mixed_precision.py: SWITCH_CALL_CAP = 30",
     "0.7": "mixed_precision.py: AO_CACHE_MEM_FRACTION = 0.7",
-    # gpu4pyscf/dft/vv10_mixed.py @ 4d2f3de4
+    # gpu4pyscf/dft/vv10_mixed.py @ d642f3da
     "1e-5": "vv10_mixed.py: VV10_SWITCH_TOL = 1e-5; upstream tdscf/ris.py warns below conv_tol 1e-5",
     "1e-10": "vv10_mixed.py: VVDF_REL = 1e-10 (certificate band, relative)",
     "1e-11": "vv10_mixed.py: VVDF_DENLC = 1e-11 (certificate band, Ha); tests: SAME = 1e-11",
     "48": "vv10_mixed.py / mixed_precision.py docstring: df64 is ~48-bit",
-    # tests @ 4d2f3de4
+    # tests @ d642f3da
     "1e-8": "test_mixed_precision.py: ETOL = 1e-8",
-    "32": "test_mixed_precision.py: 32 test methods (21 KnownValues + 10 AOCache + 1 MultiGPU)",
-    "18": "test_mixed_precision_vv10.py: 18 test methods; also CLAIMS C4 (18 cells); 'under 18 s'",
-    "50": "32 + 18 new tests; g4psrc r4 50/50 on all three profiles",
-    "22": "git show --numstat 920bf64: 21 KnownValues + 1 MultiGPU tests in the first commit",
-    # git diff --numstat c1a6e37 4d2f3de4
-    "2931": "git diff --numstat c1a6e37 4d2f3de4: total insertions",
-    "39": "git diff --numstat c1a6e37 4d2f3de4: total deletions (39 on code, 0 on tests/README)",
-    "2070": "git diff --numstat, gpu4pyscf/ minus tests: insertions",
-    "963": "numstat: dft/mixed_precision.py +963",
-    "915": "numstat: dft/vv10_mixed.py +915",
-    "928": "git show --numstat 920bf64 (the XC + K commit): +928",
-    "17": "git show --numstat 920bf64: -17; CLAIMS C4: 17 of 18 cells",
-    "77": "numstat: df/df_jk.py +77",
+    "38": "test_mixed_precision.py @ d642f3da: 38 test methods (26 KnownValues + 11 AOCache + 1 MultiGPU)",
+    "18": "test_mixed_precision_vv10.py @ d642f3da: 18 test methods; also CLAIMS C4 (18 cells); slowest 18.4 s",
+    "56": "38 + 18 new tests; g4psrc r5 new_tests 56 passed, 0 skipped on all three profiles",
+    "27": "git show 9b129af:gpu4pyscf/dft/tests/test_mixed_precision.py: 26 KnownValues + 1 MultiGPU tests in the first commit",
+    # git show --numstat 9b129af (the XC + K commit): +1033 / -17 over 6 files
+    "1033": "git show --numstat 9b129af: total insertions of the XC + K commit",
+    "17": "git show --numstat 9b129af: -17; CLAIMS C4: 17 of 18 cells",
+    # git diff --numstat e1020c3 d642f3da (10 files)
+    "3054": "git diff --numstat e1020c3 d642f3da: total insertions",
+    "39": "git diff --numstat e1020c3 d642f3da: total deletions (39 on code, 0 on tests/README)",
+    "2115": "git diff --numstat e1020c3 d642f3da, gpu4pyscf/ minus tests: insertions",
+    "993": "numstat e1020c3..d642f3da: dft/mixed_precision.py +993",
+    "915": "numstat e1020c3..d642f3da: dft/vv10_mixed.py +915",
+    "80": "numstat e1020c3..d642f3da: df/df_jk.py +80",
     "3": "numstat: df/df_jk.py -3; CLAIMS: '3 cards', '3 %'",
-    "45": "numstat: dft/rks.py +45",
+    "51": "numstat e1020c3..d642f3da: dft/rks.py +51",
     "4": "numstat: dft/rks.py -4; RFC: 'four commits'",
-    "29": "numstat: dft/numint.py +29",
+    "29": "numstat e1020c3..d642f3da: dft/numint.py +29",
     "20": "numstat: dft/numint.py -20; CLAIMS: '20–44 atoms'",
-    "41": "numstat: scf/hf.py +41",
+    "41": "numstat e1020c3..d642f3da: scf/hf.py +41",
     "12": "numstat: scf/hf.py -12; CLAIMS: '12 readings'",
-    "9": "nine files in the diff; CLAIMS: '9 cells'",
-    # g4psrc r4 (three profiles on fork 4d2f3de4, master c1a6e37, built from source);
-    # validation/VALIDATION-g4psrc.md and g4psrc_r4_*.json carry the records
-    "38022477235": "g4psrc r4 pro6000-lock run id (engine repo)",
-    "38023769024": "g4psrc r4 pro6000-pyscf28 run id (engine repo)",
-    "38024957471": "g4psrc r4 v100-ci run id (engine repo)",
-    "44": "g4psrc r4: upstream regression 44 passed (+ 1 skipped) on both trees; CLAIMS: '20–44 atoms'",
-    "1": "g4psrc r4: 1 skipped; CLAIMS: 'above 1'",
-    "5.9e-12": "g4psrc r4 pro6000-lock: trio |dE| <= 5.9e-12 Ha (g4psrc_r4_pro6000-lock.json)",
-    "2.7e-12": "g4psrc r4 pro6000-pyscf28: trio |dE| <= 2.7e-12 Ha (g4psrc_r4_pro6000-pyscf28.json)",
-    "133": "g4psrc r4 v100-ci: new_tests wall_s 132.8 (g4psrc_r4_v100-ci.json)",
-    "18.3": "g4psrc r4 v100-ci: slowest test 18.29 s, test_vv10_paracetamol (durations in the JSON)",
-    "17.5": "g4psrc r4 v100-ci: second slowest test 17.5 s, test_kernels_against_stock_vv10nlc (VALIDATION-g4psrc.md)",
-    "2.8": "upstream unittest.yml multi-gpu job: pip install pyscf==2.8; g4psrc r4 pro6000-pyscf28 ran 2.8.0",
-    "0.9": "upstream unittest.yml single-gpu job: gpu4pyscf-libxc-cuda12x 0.9.0; g4psrc r4 v100-ci ran it",
-    "1.17": "upstream requirements / multi-gpu job: scipy 1.17, not tested (r4 Amendment 1)",
+    "6": "numstat e1020c3..d642f3da: scf/soscf.py +6 (the newton refusal, in 9b129af); six questions; CLAIMS: six molecules",
+    "555": "numstat e1020c3..d642f3da: dft/tests/test_mixed_precision.py +555",
+    "383": "numstat e1020c3..d642f3da: dft/tests/test_mixed_precision_vv10.py +383",
+    "1": "numstat: README.md +1; g4psrc r5: 1 skipped; CLAIMS: 'above 1'",
+    # g4psrc r5 (three profiles on fork d642f3da, master e1020c3, built from source);
+    # validation/VALIDATION-g4psrc.md and g4psrc_r5_*.json carry the records
+    "38198811227": "g4psrc r5 pro6000-lock run id (engine repo; RUN_ID=38198811227-1-24f592ca)",
+    "38201109296": "g4psrc r5 pro6000-pyscf28 run id (engine repo; RUN_ID=38201109296-1-24f592ca)",
+    "38200149447": "g4psrc r5 v100-ci run id (engine repo; RUN_ID=38200149447-1-24f592ca)",
+    "44": "g4psrc r5: upstream regression 44 passed (+ 1 skipped) on both trees, all profiles; CLAIMS: '20–44 atoms'",
+    "5.9e-12": "g4psrc r5 pro6000-lock: trio max |dE| 5.91e-12 Ha (g4psrc_r5_pro6000-lock.json)",
+    "5.0e-12": "g4psrc r5 pro6000-pyscf28: trio max |dE| 5.00e-12 Ha (g4psrc_r5_pro6000-pyscf28.json)",
+    "136": "g4psrc r5 pro6000-lock and v100-ci: new_tests wall_s 135.6 / 135.7 (g4psrc_r5_*.json)",
+    "123": "g4psrc r5 pro6000-pyscf28: new_tests wall_s 122.7 (g4psrc_r5_pro6000-pyscf28.json)",
+    "18.4": "g4psrc r5 v100-ci: slowest test 18.44 s, test_vv10_paracetamol (durations in g4psrc_r5_v100-ci.json)",
+    "16.9": "g4psrc r5 v100-ci: second slowest 16.91 s, test_kernels_against_stock_vv10nlc (g4psrc_r5_v100-ci.json)",
+    "11": "g4psrc r5 v100-ci: third slowest 10.93 s, so 'the rest under 11 s'; CLAIMS C3: 11 of 12 A100 clean cells",
+    "2.8": "upstream unittest.yml multi-gpu job: pip install pyscf==2.8; g4psrc r5 pro6000-pyscf28 ran 2.8.0",
+    "0.9": "upstream unittest.yml single-gpu job: gpu4pyscf-libxc-cuda12x 0.9.0; g4psrc r5 v100-ci ran it",
+    "1.17": "upstream requirements / multi-gpu job: scipy 1.17, not tested (r4 Amendment 1; r5 kept 1.15.3)",
     # RFC prose
-    "6": "six questions; CLAIMS: six molecules",
     "5": "CLAIMS C1: 5 healthy pods",
-    "11": "CLAIMS C3: 11 of 12 A100 clean cells",
     "24": "CLAIMS C1: 24 molecules",
 }
 
