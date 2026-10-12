@@ -93,9 +93,10 @@ bitwise equal to `nr_rks` (`test_fp64_cached_is_bitwise_stock_nr_rks`, with a ne
 
 ## Evidence
 
-Full detail, protocols, raw per-run data and the script that recomputes every number:
-`benchmarks/mixed_precision/native/` on the fork's `mixed-precision-rfc-package-v2` branch
-(`CLAIMS.md`, `verify_native.py`). Most of it is in the campaign configuration, which differs
+Full detail, protocols, raw per-run data and the script that recomputes every benchmark figure:
+[`benchmarks/mixed_precision/native/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-evidence/benchmarks/mixed_precision/native)
+on the fork's `mixed-precision-evidence` branch (`CLAIMS.md`, `verify_native.py`; the GPU
+validation records are in `../validation/`). Most of it is in the campaign configuration, which differs
 from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune = None`, B3LYP
 `xc_switch_tol=3e-4`, cuTENSOR 2.3.1, def2-mTZVPP / def2-tzvpp-jkfit, `conv_tol=1e-9`, default
 `conv_tol_grad`. The library defaults were measured separately on three molecules (CLAIMS C7).
@@ -113,20 +114,26 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
   pods read about 30 % lower (2.059 on the trio; 1.92–2.13 on four molecules) and are excluded
   under a contention rule (idle draw above 200 W, PREREG-0 Amendment 3) written after they had
   been seen; their re-runs on quiet cards read 2.963 and 2.87–3.05, so the headline stands, but on
-  shared GPUs expect the lower readings. Six molecules of 63–98 atoms: r2SCAN 1.931, B3LYP 1.338.
-  B3LYP's gain falls with size because the J/K stage, about half the stock SCF at 475–559 Da, gains
-  only 5–7 % while XC gains 2–3×.
+  shared GPUs expect the lower readings. Six molecules of 63–98 atoms: r2SCAN 1.931 (1.802 without
+  ritonavir, whose stock wall is anomalously high), B3LYP 1.338 (MODEL-MISS, below the L tier's
+  1.897). B3LYP's gain falls with size; the J/K stage, about half the stock SCF at 475–559 Da, gains
+  only 5–7 % while XC gains 2–3×, which accounts for part of the drop. The rest is unexplained.
 - **FP64-strong cards** (CLAIMS C3): L40S pays (1.729 / 1.524 / 2.994 for r2SCAN / B3LYP /
   wB97M-V). H100: 1.320–1.398 / 0.905–1.021 / 0.577–0.615; the r2SCAN gain there is almost all
-  the FP64 AO cache (FP32 switch alone 1.084). A100: 11 of 12 clean cells neutral or slower.
+  the FP64 AO cache (FP32 switch alone 1.084); the pre-registered predictions for B3LYP and wB97M-V
+  were 1.20 and 1.35 (MODEL-MISS). A100: 11 of 12 clean cells neutral or slower.
 - **Accuracy** (CLAIMS C4; 18 cells, mixed M vs stock S from the same guess): gradients within
   3.8e-9 – 5.3e-8 (r2SCAN), 2.1e-8 – 2.7e-7 (B3LYP, 5 of 6 cells), 1.2e-8 – 3.2e-8 (wB97M-V)
   Ha/Bohr; dipoles within 2.4e-6 / 9.3e-6 / 5.9e-12 D on the same cells. The exception is
   omeprazole B3LYP: one extra cycle, 4.4e-6 Ha/Bohr and 1.9e-4 D from S, landing 3.4× closer to
   the tight stock reference R (`conv_tol` 1e-11) than stock did. Against R every \|ΔE\| is
   ≤ 1.6e-10 Ha, cycles are equal in 17 of 18 cells, and both arms carry the same 6.6e-7 – 3.4e-6
-  Ha/Bohr residual, set by the default `conv_tol_grad`; at `conv_tol_grad = 3e-6` mixed tracks
-  stock to 1.5e-9 – 2.3e-8 / 6.8e-9 – 2.2e-7 / 1.1e-8 – 2.1e-8 Ha/Bohr with identical cycle counts.
+  Ha/Bohr residual, set by the default `conv_tol_grad`; at `conv_tol_grad = 3e-6` (14 cells, of
+  which wB97M-V is 2) mixed tracks stock to 1.5e-9 – 2.3e-8 / 6.8e-9 – 2.2e-7 / 1.1e-8 – 2.1e-8
+  Ha/Bohr with identical cycle counts. Disclosure: the pod that ran the 12 r2SCAN and B3LYP cells
+  is `STATUS=FAIL` on one pre-registered gate, fluconazole r2SCAN's dipole against R (1.004e-4 D
+  against a 1e-4 D ceiling; stock's own S−R is 9.93e-5 D, M−S 1.05e-6 D), so under the campaign's
+  rules its numbers are labelled UNQUOTABLE; the r2SCAN and B3LYP figures above carry that label.
 - **Geometry optimisation** (CLAIMS C6; three geomeTRIC runs, stock gradients, one run per arm):
   identical step counts (23, 26, 16), endpoints within 9.9e-6 Å of stock, warm-step SCF 1.41–1.44
   and whole optimisation 1.19–1.30 faster; every endpoint passes a stock certificate (\|ΔE\| ≤
@@ -196,8 +203,8 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
 - **At the library defaults** (CLAIMS C7; the figures under Evidence) every reading on the trio is
   above 1.15, the campaign's threshold for a gain worth reporting; the default grid has about 0.63
   of the unpruned grid's points and stock itself is 1.356 / 1.278 / 1.035 faster on it. One
-  pre-registered prediction missed: B3LYP without the cache, 1.954 against 1.65–1.90, the cache
-  adding only 1.007 for B3LYP.
+  pre-registered prediction missed (MODEL-MISS): B3LYP without the cache, 1.954 against 1.65–1.90,
+  the cache adding only 1.007 for B3LYP.
 - **Cold start.** On a fresh Blackwell machine the first SCF took 64–168 s. It is the CUDA
   driver's JIT cache, paid once per machine; stock pays it too (134.0 s when it runs first). It is
   not the mode's cost.

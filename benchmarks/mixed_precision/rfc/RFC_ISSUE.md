@@ -18,9 +18,10 @@ in what shape, before opening a PR. The code is
 [`chris-lee-mc/gpu4pyscf@mixed-precision-upstream`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream)
 (four commits on master `e1020c3`; +3054/−39 over ten files, of which the first PR we would
 propose is +1033/−17 over six). The evidence package is
-[`chris-lee-mc/gpu4pyscf@mixed-precision-rfc-package-v2`, `benchmarks/mixed_precision/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-rfc-package-v2/benchmarks/mixed_precision):
-its `native/verify_native.py` recomputes every number quoted here from the per-run data, and its
-`README.md` documents the API, the refusals and the VV10 and AO-cache details left out here.
+[`chris-lee-mc/gpu4pyscf@mixed-precision-evidence`, `benchmarks/mixed_precision/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-evidence/benchmarks/mixed_precision)
+(upstream master plus that directory): its `native/verify_native.py` recomputes every benchmark
+figure quoted here from the per-run data, its `validation/` holds the GPU validation records, and
+its `README.md` documents the API, the refusals and the VV10 and AO-cache details left out here.
 
 ## Proposed API
 
@@ -68,7 +69,8 @@ and under pyscf 2.8.
   is forced and the SCF continues. DF `get_veff` rebuilds J/K from the full density every iteration.
 - **Energies are accumulated in FP64**; gradients and Hessians run stock, in FP64. **With
   `mf.mixed_precision` unset, no code path changes**: every hook is behind a `None` check, and
-  upstream's regression tests pass identically on both trees.
+  four of upstream's test files (`test_df_rks`, `test_df_jk`, `test_rks`, `test_scf`) pass
+  identically on both trees.
 
 ## Evidence
 
@@ -94,15 +96,17 @@ excluded under a contention rule (idle draw above 200 W, PREREG-0 Amendment 3) w
 had been seen; their re-runs on quiet cards read 2.96 and 2.87–3.05. On shared GPUs expect the lower
 readings. Without the AO cache, on the unpruned grid, the FP32 switch reads 1.63 / 1.95 / 2.88, so
 the cache is a small part of the gain. On six molecules of 63–98 atoms: r2SCAN 1.93 (1.80 without
-one anomalous stock wall), B3LYP 1.34, whose gain falls with size because the J/K stage gains only
-5–7 % while XC gains 2–3× (CLAIMS C2). The 24-molecule pod's two replicates were both DEGRADED; on
-clean cells they read 0.05–0.09 higher (CLAIMS C1).
+one anomalous stock wall), B3LYP 1.34 (MODEL-MISS, below the L tier's 1.897). B3LYP's gain falls
+with size; at 475–559 Da the J/K stage, about half the stock SCF, gains only 5–7 % while XC gains
+2–3×, which accounts for part of the drop, and the rest is unexplained (CLAIMS C2). The 24-molecule
+pod's two replicates were both DEGRADED; on clean cells they read 0.05–0.09 higher (CLAIMS C1).
 
 **Negative result, FP64-strong cards** (CLAIMS C3). On an L40S the mode pays (r2SCAN 1.73, B3LYP
 1.52, wB97M-V 2.99). On an H100 it does not: wB97M-V 0.58–0.61 (i.e. slower), B3LYP 0.91–1.02, and
 r2SCAN's 1.32–1.40 comes almost entirely from the FP64 AO cache (the FP32 switch itself reads
-1.08). On an A100, 11 of 12 clean cells were neutral or slower. **The code does not detect the
-device**; see question 2.
+1.08). The pre-registered predictions for H100 B3LYP and wB97M-V were 1.20 and 1.35 (MODEL-MISS,
+far below). On an A100, 11 of 12 clean cells were neutral or slower. **The code does not detect
+the device**; see question 2.
 
 **Accuracy** (CLAIMS C4; 18 cells, three functionals × six molecules, mixed M against stock S run
 from the same guess with the same settings):
@@ -116,7 +120,11 @@ from the same guess with the same settings):
 Cycle counts match in 17 of 18 cells; the exception, omeprazole B3LYP (one extra cycle, 4.4e-6
 Ha/Bohr and 1.9e-4 D from S), landed 3.4× closer to the tight stock reference R (`conv_tol` 1e-11)
 than stock did. Against R every \|ΔE\| is ≤ 1.6e-10 Ha, and both arms carry the same 6.6e-7 –
-3.4e-6 Ha/Bohr residual, set by the default `conv_tol_grad`, not by precision (CLAIMS C4).
+3.4e-6 Ha/Bohr residual, set by the default `conv_tol_grad`, not by precision (CLAIMS C4). One
+disclosure: the pod that ran the 12 r2SCAN and B3LYP cells is `STATUS=FAIL` on a pre-registered
+gate, fluconazole r2SCAN's dipole against R at 1.004e-4 D against a 1e-4 D ceiling, a residual
+stock itself carries (S−R 9.93e-5 D; M−S 1.05e-6 D). Under the campaign's rules its numbers are
+labelled UNQUOTABLE, and the r2SCAN and B3LYP rows above carry that label.
 
 **Geometry optimisation** (CLAIMS C6; geomeTRIC, stock gradients, one card, one run per arm):
 paracetamol r2SCAN, paracetamol B3LYP and celecoxib r2SCAN take the same 23, 26 and 16 steps as

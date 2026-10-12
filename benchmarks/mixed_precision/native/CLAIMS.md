@@ -219,10 +219,10 @@ M with R. The S arm was recorded in every sentinel but never read (see the ledge
 
 | | gradient, max \|M−S\| (Ha/Bohr) | dipole, max \|M−S\| (D) |
 |---|---|---|
-| r2SCAN (6 cells) | 3.8e-9 – 5.3e-8 | 3.0e-7 – 2.4e-6 |
-| B3LYP (5 cells) | 2.1e-8 – 2.7e-7 | 2.0e-7 – 9.3e-6 |
-| wB97M-V (6 cells) | 1.2e-8 – 3.2e-8 | 1.2e-12 – 5.9e-12 |
-| omeprazole B3LYP | 4.4e-6 | 1.9e-4 |
+| r2SCAN (6 cells; pod D1, UNQUOTABLE, see Gates) | 3.8e-9 – 5.3e-8 | 3.0e-7 – 2.4e-6 |
+| B3LYP (5 cells; pod D1, UNQUOTABLE) | 2.1e-8 – 2.7e-7 | 2.0e-7 – 9.3e-6 |
+| wB97M-V (6 cells; pods D2a–c, PASS) | 1.2e-8 – 3.2e-8 | 1.2e-12 – 5.9e-12 |
+| omeprazole B3LYP (pod D1, UNQUOTABLE) | 4.4e-6 | 1.9e-4 |
 
 - **In 17 of 18 cells, M and S stop at essentially the same iterate.**
   - M−R and S−R point the same way (cosine +0.98 to +1.000).
