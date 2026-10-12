@@ -1,6 +1,6 @@
 # PREREG rfcbench-10: downstream accuracy at the default `conv_tol_grad`, in triplicate
 
-**Status 2026-10-12: PRE-REGISTERED, not yet run.** Governed by `PREREG-rfcbench-0-measurand.md`.
+**Status 2026-10-12: PRE-REGISTERED; RUN and RESULT written 2026-10-12 (PASS).** Governed by `PREREG-rfcbench-0-measurand.md`.
 It freezes at the first PREREG-10 sentinel. Changes go only in dated amendments above RESULT,
 written before the dispatch they govern.
 
@@ -279,7 +279,7 @@ quotable; this pod is the measurement, and D1 remains FAIL.
 
 - **Omeprazole B3LYP reproduces D1 three times over.** One extra mixed cycle. Mixed is 4.4e-6
   Ha/Bohr and 1.9e-4 D from stock, but closer to the converged reference than stock:
-  - gradient: M−R 1.0e-6–1.05e-6, against S−R 3.38e-6;
+  - gradient: M−R 1.0e-6–1.05e-6, against S−R 3.38e-6–3.39e-6 (corrected before merge; see Erratum 1);
   - dipole: M−R 3.5e-5–3.6e-5 D, against S−R 1.57e-4 D.
 
   The raw M−S dipole is above 1e-4 D in every k, as predicted, and is disclosed, not gated.
@@ -305,3 +305,12 @@ quotable; this pod is the measurement, and D1 remains FAIL.
   r2SCAN 3.8e-9 – 5.3e-8, B3LYP but omeprazole 2.1e-8 – 2.7e-7, omeprazole 4.4e-6 / 1.9e-4).
 - Scope: one card, the same six molecules and settings as D1, and r2SCAN and B3LYP only. wB97M-V's
   default-tolerance cells are D2's, which passed.
+
+### Erratum 1 (2026-10-12, before merge; no gate, verdict or quoted M−S figure changes)
+
+- **The status line** read "PRE-REGISTERED, not yet run" after the RESULT was written. It now
+  records the run.
+- **Omeprazole B3LYP S−R gradient.** It was printed as "3.38e-6". Over the three repeats it reads
+  3.3853e-6, 3.3840e-6 and 3.3831e-6, so the range is 3.38e-6 – 3.39e-6. The fork package's
+  `verify_native.py` found this when it recomputed every figure from the raw vectors.
+

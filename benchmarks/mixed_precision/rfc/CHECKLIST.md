@@ -95,10 +95,9 @@ flake8 --config .flake8 gpu4pyscf
 - [x] PREREG-10 DR1 (the default-tolerance r2SCAN/B3LYP cells in triplicate, PASS) banked as
       `native/data/dr1.csv` and checked by `verify_native.py` N12; the three RFC texts now quote it in
       place of D1's UNQUOTABLE cells, and `verify_rfc.py` binds the new figures to N12.
-- [ ] **Engine-repo erratum to file (not done here).** `native/prereg/PREREG-rfcbench-10-downstream-triplicate.md`
-      line 3 still reads "PRE-REGISTERED, not yet run" although its RESULT is appended, and the
-      protocol is not yet merged into the engine repository's `main` (mirrored from `36004fe0`).
-      As for PREREG-9: correct it there by dated erratum, merge, and re-mirror.
+- [x] PREREG-10's status line and the omeprazole B3LYP S−R range were corrected in the engine repo
+      by Erratum 1 (`c56a3c30`, before merge) and re-mirrored here.
+- [ ] Merge engine PR #247 (PREREG-10), then confirm the mirror is byte-identical to `main`.
 - [x] The `mixed_precision.py` docstring (amended into the fourth commit, then `4d2f3de4`, now
       `d642f3d`) now gives CLAIMS C3's figures (wB97M-V 1.6–2× slower; H100 B3LYP neutral to about 1.1× slower; A100
       11 of 12 clean cells neutral or slower), and says K is held to XC's switch only when `xc` and
@@ -106,11 +105,7 @@ flake8 --config .flake8 gpu4pyscf
 - [ ] The usage snippet in that docstring uses `gpu4pyscf.dft.RKS` (a factory function in
       `gpu4pyscf/dft/__init__.py` on `c1a6e37` and `e1020c3`); the tests and `rfc/` use
       `gpu4pyscf.dft.rks.RKS`. Both resolve; no action unless the rebase changes `dft/__init__.py`.
-- [ ] **Engine-repo erratum to file (not done here).** `native/prereg/PREREG-rfcbench-9-library-defaults.md`
-      line 3 still reads "PRE-REGISTERED, not yet run" although its RESULT is appended (from line
-      275). `native/prereg/` is a byte-identical mirror of the engine repository's protocols, so it
-      is **not** edited in this package: correct the status line in the engine repo (as a dated
-      erratum, like PREREG-8 Erratum 1) and re-mirror.
+- [x] PREREG-9's status line: corrected in the engine repo by Erratum 1 (PR #246) and re-mirrored.
 - [x] `test_nr_coach` under libxc 0.9.0: the "unrelated to this change" note was dropped from
       `RFC_ISSUE.md` and `PR_BODY.md`, since upstream #960 (master `e1020c3`) now skips that test
       on older pyscf / libxc; `validation/VALIDATION-g4psrc.md` keeps r4's observation as a record

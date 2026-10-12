@@ -22,8 +22,8 @@ PREREG-7's RESULT and errata (PR #231), PREREG-8's RESULT (PR #236) and its Erra
 a one-line redaction of an AI model's name; no number changes), PREREG-4's erratum 2 (PR #237) and
 PREREG-9 with its RESULT (PR #243) and its status-line Erratum 1 (PR #246), all merged into that repository's `main`. PREREG-9's protocol
 text above the RESULT is byte-identical in `e1cc2bb5`, the commit both of its pods ran, which `main`
-keeps in its history (merged, not rebased). PREREG-10 and its RESULT are mirrored from that
-repository's commit `36004fe0` (on its PREREG-10 branch, **not yet merged into
+keeps in its history (merged, not rebased). PREREG-10, its RESULT and its Erratum 1 (status line; the omeprazole B3LYP S−R range) are mirrored
+from that repository's commit `c56a3c30` (on its PREREG-10 branch, PR #247, **not yet merged into
 `main`**); the protocol text above the RESULT is byte-identical in `16aa4e3a`, the commit its pod
 ran.
 
