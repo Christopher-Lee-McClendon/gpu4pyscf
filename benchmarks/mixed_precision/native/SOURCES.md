@@ -4,8 +4,9 @@ Every CSV in `data/` was extracted from one pod's result sentinel, on the `ci-bu
 `chris-lee-mc/gpu-conformer-engine`. The extractor was `.github/scripts/rfcbench_extract.py`
 (`--run-id <RUN_ID> --csv`), at the commit that merged each RESULT (for PREREG-7, whose RESULT
 is not yet merged, at `d05888b8`; the extractor is byte-identical on the RESULT's branch; for
-PREREG-9 at `e1cc2bb5`, the commit its pods ran, which is the extractor shipped in `provenance/`
-and re-extracts every earlier CSV unchanged). A sentinel's line 2 is
+PREREG-9 at `e1cc2bb5`, the commit its pods ran; for PREREG-10 at `16aa4e3a`, the commit its pod
+ran, byte-identical at `36004fe0`, which is the extractor shipped in `provenance/` and re-extracts
+every earlier CSV unchanged). A sentinel's line 2 is
 `RUN_ID=<RUN_ID>`, and each CSV row carries the same `run_id`; `verify_native.py` checks that
 against `data/pods.csv`.
 
@@ -21,7 +22,10 @@ PREREG-7's RESULT and errata (PR #231), PREREG-8's RESULT (PR #236) and its Erra
 a one-line redaction of an AI model's name; no number changes), PREREG-4's erratum 2 (PR #237) and
 PREREG-9 with its RESULT (PR #243) and its status-line Erratum 1 (PR #246), all merged into that repository's `main`. PREREG-9's protocol
 text above the RESULT is byte-identical in `e1cc2bb5`, the commit both of its pods ran, which `main`
-keeps in its history (merged, not rebased).
+keeps in its history (merged, not rebased). PREREG-10 and its RESULT are mirrored from that
+repository's commit `36004fe0` (on its PREREG-10 branch, **not yet merged into
+`main`**); the protocol text above the RESULT is byte-identical in `16aa4e3a`, the commit its pod
+ran.
 
 Fork under test: `chris-lee-mc/gpu4pyscf` at `63af0568d4fd19935bef51b7fd71f161a9cee56f`, overlaid
 on `gpu4pyscf-cuda12x==1.8.1` with the lock in `../requirements.lock` and `cutensor-cu12==2.3.1`.
@@ -39,6 +43,7 @@ on `gpu4pyscf-cuda12x==1.8.1` with the lock in `../requirements.lock` and `cuten
 | `d2a` | PREREG-4 D2a | `37040169998` | `3890e545` | RTX PRO 6000 Blackwell Workstation Edition | — | 55.26 | False | 0 | 0 | False | PASS |
 | `d2b` | PREREG-4 D2b | `37042063662` | `3890e545` | RTX PRO 6000 Blackwell Workstation Edition | — | 25.97 | False | 0 | 0 | False | PASS |
 | `d2c` | PREREG-4 D2c | `37043596852` | `3890e545` | RTX PRO 6000 Blackwell Workstation Edition | — | 27.29 | False | 0 | 0 | False | PASS |
+| `dr1` | PREREG-10 DR1 (D1's twelve cells in triplicate) | `38280778155` | `16aa4e3a` | RTX PRO 6000 Blackwell Workstation Edition | — | 75.58 | False | 0 (12 `downrep` cells, 7 runs) | 0 | False | PASS |
 | `f0` | PREREG-6 F0 | `37379456085` | `e9b75f37` | RTX PRO 6000 Blackwell Server Edition | — | 65.62 | False | 6 | 0 | False | PASS |
 | `f1a` | PREREG-6 F1a | `37382762854` | `e9b75f37` | RTX PRO 6000 Blackwell Server Edition | 1g.24gb | 92.84 | False | 3 | 0 | False | PASS |
 | `f1b` | PREREG-6 F1b | `37386887345` | `e9b75f37` | RTX PRO 6000 Blackwell Server Edition | 1g.24gb | 93.96 | False | 3 | 0 | False | PASS |
@@ -89,6 +94,10 @@ its extractor is. Their CSVs carry one row per arm and pair, like the speed CSVs
 names `mixed-default`, `mixed-nocache-campaign`, `mixed-campaign`, `stock-default` and
 `stock-campaign`; `noisy_cells` counts `defaults` cells (LD1's is paracetamol B3LYP, one arm under
 1 s). `verify_native.py` N11 reads them.
+PREREG-10's pod (DR1; mode `downrep`) ran the campaign fork tree `63af0568` (D1's own tree), on
+harness commit `16aa4e3a`, which added the `downrep` mode; that harness is not snapshotted either,
+its extractor is. Its CSV carries one row per run (R, S1, M1, M2, S2, S3, M3 per cell); the full
+gradient and dipole vectors are in the sentinel, and `verify_native.py` N12 reads them from there.
 
 **Not billed, so with no sentinel:**
 - the 5090 capacity refusals: runs `37064884792` and `37073071979`;

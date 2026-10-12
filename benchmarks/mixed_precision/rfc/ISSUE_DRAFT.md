@@ -83,11 +83,11 @@ wB97M-V. On an A100, 11 of 12 clean cells were neutral or slower. The code does 
 Accuracy, mixed vs stock from the same guess and settings, at `conv_tol_grad = 3e-6` (the setting we recommend for
 gradients and properties; 14 cells): gradients agree to 1.5e-9 – 2.3e-8 Ha/Bohr for r2SCAN and 6.8e-9 – 2.2e-7 for
 B3LYP (six molecules each) and 1.1e-8 – 2.1e-8 for wB97M-V (two), dipoles to ≤ 1.4e-6, 8.7e-6 and 4.5e-12 D, with
-identical cycle counts in every cell. Caveat: that is tighter than gpu4pyscf's default. At the default (context; 18
-cells) both arms carry the same 6.6e-7 – 3.4e-6 Ha/Bohr residual against a `conv_tol` 1e-11 reference (every |ΔE|
-≤ 1.6e-10 Ha) and mixed vs stock is 3.8e-9 – 2.7e-7 Ha/Bohr, except omeprazole B3LYP (4.4e-6, one extra cycle, yet
-3.4× closer to the reference than stock). That run failed one pre-registered gate on a residual stock itself carries
-(fluconazole r2SCAN's dipole, 1.004e-4 D on a 1e-4 D ceiling), so its 12 r2SCAN/B3LYP cells are not quotable.
+identical cycle counts in every cell. Caveat: that is tighter than gpu4pyscf's default. At the default, in triplicate
+(36 same-guess pairs, every |ΔE| ≤ 1.7e-10 Ha, equal cycles in 33): 3.2e-9 – 6.5e-8 Ha/Bohr and ≤ 2.9e-6 D for
+r2SCAN, 2.0e-8 – 2.7e-7 and ≤ 1.0e-5 D for B3LYP, except omeprazole B3LYP (4.4e-6, 1.9e-4 D, one extra cycle, yet
+closer than stock to a `conv_tol` 1e-11 reference: 1.0e-6 – 1.05e-6 vs 3.4e-6). An earlier single-run measurement
+failed a pre-registered gate on stock's own residual, so we redesigned it and re-ran it in triplicate.
 
 Geometry optimisation (geomeTRIC, stock gradients, one card, one run per arm): paracetamol r2SCAN, paracetamol B3LYP
 and celecoxib r2SCAN take the same 23, 26 and 16 steps as stock, end within 9.9e-6 Å of stock's endpoint and pass a

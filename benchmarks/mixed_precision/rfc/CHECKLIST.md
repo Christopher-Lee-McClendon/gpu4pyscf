@@ -90,8 +90,15 @@ flake8 --config .flake8 gpu4pyscf
       branch: "21 tests", "+914 / −18"); its dead `DISCUSSION-DRAFT` reference now points to
       `rfc/RFC_ISSUE.md`. `rfc/make_evidence_branch.sh` excludes it from the evidence branch, so
       it never reaches the branch the issue links; it may stay here.
-- [x] `README.md` now says 46 pods (44 plus PREREG-9's LD1 and LD2), matching `native/README.md`
-      and `native/SOURCES.md`.
+- [x] `README.md` now says 47 pods (44 plus PREREG-9's LD1 and LD2 and PREREG-10's DR1), matching
+      `native/README.md` and `native/SOURCES.md`.
+- [x] PREREG-10 DR1 (the default-tolerance r2SCAN/B3LYP cells in triplicate, PASS) banked as
+      `native/data/dr1.csv` and checked by `verify_native.py` N12; the three RFC texts now quote it in
+      place of D1's UNQUOTABLE cells, and `verify_rfc.py` binds the new figures to N12.
+- [ ] **Engine-repo erratum to file (not done here).** `native/prereg/PREREG-rfcbench-10-downstream-triplicate.md`
+      line 3 still reads "PRE-REGISTERED, not yet run" although its RESULT is appended, and the
+      protocol is not yet merged into the engine repository's `main` (mirrored from `36004fe0`).
+      As for PREREG-9: correct it there by dated erratum, merge, and re-mirror.
 - [x] The `mixed_precision.py` docstring (amended into the fourth commit, then `4d2f3de4`, now
       `d642f3d`) now gives CLAIMS C3's figures (wB97M-V 1.6–2× slower; H100 B3LYP neutral to about 1.1× slower; A100
       11 of 12 clean cells neutral or slower), and says K is held to XC's switch only when `xc` and
@@ -112,7 +119,7 @@ flake8 --config .flake8 gpu4pyscf
 ## 5. Final verification before posting anything
 
 - [ ] `python3 benchmarks/mixed_precision/native/verify_native.py` ends with
-      `943/951 checks reproduced; 8 known discrepancies (listed above, not adjusted); 0 failures`
+      `1024/1033 checks reproduced; 9 known discrepancies (listed above, not adjusted); 0 failures`
       (or a higher reproduced count if checks were added) and exits 0.
 - [ ] `python3 benchmarks/mixed_precision/verify_aggregates.py` ends with
       `419 checks: 418 ok, 1 known DISCREPANCY (reported, not adjusted), 0 FAIL`.
@@ -165,7 +172,8 @@ flake8 --config .flake8 gpu4pyscf
       ```
 
       Then, on the pushed branch: `git ls-tree -r --name-only origin/mixed-precision-evidence
-      benchmarks/mixed_precision | grep -c '\.csv$'` must read **56** (the first build, `798714d`,
+      benchmarks/mixed_precision | grep -c '\.csv$'` must read **57** (56 before PREREG-10's
+      `dr1.csv` was banked; the first build, `798714d`,
       read 0: upstream's `.gitignore` has `*.csv` without the package branch's exceptions, and the
       script's `git add -A` dropped every data file; the script now adds with `-f` and verifies the
       commit), and `native/verify_native.py` and `verify_aggregates.py` must pass from a checkout

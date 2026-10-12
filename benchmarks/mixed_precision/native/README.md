@@ -4,13 +4,15 @@ The parent directory's bundle backs the RFC with the **prototype's** measurement
 engine run side by side with stock GPU4PySCF). This directory backs it with the **fork's own port**,
 switched on with `mf.mixed_precision = MixedPrecision(...)`.
 
-- 46 pods across five GPU models: RTX PRO 6000 Workstation, RTX PRO 6000 Server, L40S, H100 and
+- 47 pods across five GPU models: RTX PRO 6000 Workstation, RTX PRO 6000 Server, L40S, H100 and
   A100, plus RTX PRO 6000 MIG 1g.24gb instances.
 - Under written protocols with pre-stated predictions.
 - **Mostly at settings that differ from the library defaults:** the FP64 AO cache on, an unpruned
   grid, B3LYP `xc_switch_tol=3e-4`, and cuTENSOR required (the campaign configuration; `CLAIMS.md`
   gives the table). The library defaults themselves were measured on three molecules and one card
   (`CLAIMS.md` C7): r2SCAN 1.577, B3LYP 1.636, wB97M-V 3.094.
+- Accuracy at the default `conv_tol_grad` for r2SCAN and B3LYP is quotable from one triplicate pod
+  (PREREG-10 DR1, `CLAIMS.md` C4); the earlier single-run pod D1 failed a gate and stays UNQUOTABLE.
 
 ```
 python verify_native.py      # stdlib only; exit 0 = every quoted number reproduced from data/
@@ -19,12 +21,12 @@ python verify_native.py      # stdlib only; exit 0 = every quoted number reprodu
 | file | what it is |
 |---|---|
 | `CLAIMS.md` | What the RFC may claim, and what it must not. Includes the measured configuration, negative results, cold start, what can and cannot be verified, and a ledger of every miss, correction and lapse. |
-| `verify_native.py` | Recomputes 951 quoted numbers and facts from `data/` at their printed precision, and re-extracts every CSV from its pod's sentinel. It checks `data/SHA256SUMS` first, fails closed, and pins its own check count. A listed known discrepancy must still recompute to its corrected value. |
+| `verify_native.py` | Recomputes 1033 quoted numbers and facts from `data/` at their printed precision, and re-extracts every CSV from its pod's sentinel. It checks `data/SHA256SUMS` first, fails closed, and pins its own check count. A listed known discrepancy must still recompute to its corrected value. |
 | `reproduce_native.py` | Re-measures one speed cell on your GPU with the campaign's settings, cuTENSOR preload and cuTENSOR gate. Transcribed from the harness and dry-run-tested only: see its header. |
 | `SOURCES.md` | Pod, GitHub run, commit, card, contention and noise flags behind every CSV. |
 | `data/*.csv` | Per-run walls, energies, cycles, convergence and cache tiers (one CSV per pod), plus `pods.csv`, `downstream.csv` and `tiers.csv`. |
-| `provenance/` | The 46 pod sentinels, the extractor, a harness snapshot and a protocol/run timeline. See its README. |
-| `prereg/` | The ten protocols, PREREG-rfcbench-0 to -9, with predictions, gates, dated amendments and RESULTs. |
+| `provenance/` | The 47 pod sentinels, the extractor, a harness snapshot and a protocol/run timeline. See its README. |
+| `prereg/` | The eleven protocols, PREREG-rfcbench-0 to -10, with predictions, gates, dated amendments and RESULTs. |
 
 **How to read the protocols.**
 - **Predictions** were written before the runs they predict, with bands. A miss is reported as

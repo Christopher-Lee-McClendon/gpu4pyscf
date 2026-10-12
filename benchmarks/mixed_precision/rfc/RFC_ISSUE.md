@@ -134,16 +134,30 @@ same settings, at `conv_tol_grad = 3e-6`, the setting we recommend for gradients
 Cycle counts are identical in every one of these 14 cells; only omeprazole B3LYP exceeds 1e-7 Ha/Bohr.
 The caveat: this is the tighter tolerance, not gpu4pyscf's default `conv_tol_grad` (√`conv_tol`).
 
-*At the default tolerance* (context, CLAIMS C4; 18 cells): mixed vs stock gradients are 3.8e-9 –
-5.3e-8 (r2SCAN), 2.1e-8 – 2.7e-7 (B3LYP, 5 of 6 cells) and 1.2e-8 – 3.2e-8 (wB97M-V) Ha/Bohr, with
-dipoles within 2.4e-6 / 9.3e-6 / 5.9e-12 D. Omeprazole B3LYP took one extra cycle and sits 4.4e-6
-Ha/Bohr and 1.9e-4 D from S, but 3.4× closer than stock to the tight stock reference R (`conv_tol`
-1e-11). Against R every \|ΔE\| is ≤ 1.6e-10 Ha, and both arms carry the same 6.6e-7 – 3.4e-6
-Ha/Bohr residual, set by the default `conv_tol_grad`, not by precision. Label: the pod that ran the
-12 r2SCAN and B3LYP default-tolerance cells is `STATUS=FAIL` on one pre-registered gate, fluconazole
-r2SCAN's dipole against R (1.004e-4 D against a 1e-4 D ceiling, a residual stock itself carries:
-S−R 9.93e-5 D, M−S 1.05e-6 D), so those 12 cells are UNQUOTABLE under the campaign's rules; the
-tight-tolerance table above is the quotable evidence for r2SCAN and B3LYP.
+*At the default tolerance* (CLAIMS C4, PREREG-10 DR1, `STATUS=PASS`; quotable): the twelve r2SCAN
+and B3LYP cells (the same six molecules) were measured in triplicate on one pod, three same-guess
+pairs S_k/M_k per cell plus a tight stock reference R (`conv_tol` 1e-11). All 36 pairs agree to
+\|ΔE\| ≤ 1.7e-10 Ha, with cycle counts equal in 33 of 36. Mixed vs stock, range over the cells and
+the three repeats:
+
+| max \|M−S\| at the default `conv_tol_grad` | gradient (Ha/Bohr) | dipole (D) |
+|---|---|---|
+| r2SCAN (6 molecules, 3 repeats) | 3.2e-9 – 6.5e-8 | 2.2e-7 – 2.9e-6 |
+| B3LYP (5 molecules, 3 repeats) | 2.0e-8 – 2.7e-7 | 2.0e-7 – 1.0e-5 |
+| omeprazole B3LYP (3 repeats) | 4.4e-6 | 1.9e-4 |
+| wB97M-V (6 molecules, single runs, PREREG-4 D2a–c, PASS) | 1.2e-8 – 3.2e-8 | ≤ 5.9e-12 |
+
+Omeprazole B3LYP is the one cell where mixed and stock stop on different iterates: mixed takes one
+extra cycle in every repeat (14 against 13) and lands closer than stock to R (gradient 1.0e-6 –
+1.05e-6 against 3.4e-6 Ha/Bohr; dipole 3.5e-5 – 3.6e-5 against 1.57e-4 D). In every cell mixed is
+no further from R than twice stock's own distance plus a small floor (the largest ratio is 0.56).
+Stock's own repeat scatter is ≤ 3.2e-12 Ha/Bohr for r2SCAN and up to 5.6e-8 for B3LYP (predicted
+≤ 3e-8: MODEL-MISS). Label: an earlier single-run measurement of the same twelve cells (PREREG-4
+D1) is `STATUS=FAIL` on one pre-registered gate, a dipole residual stock itself carries
+(fluconazole r2SCAN, 1.004e-4 D against a 1e-4 D ceiling; S−R 9.93e-5 D, M−S 1.05e-6 D), and stays
+UNQUOTABLE; the protocol was redesigned after seeing it and re-run in triplicate. At the default
+`conv_tol_grad` both arms keep a 1e-6-scale residual against R, so the tight-tolerance table above
+stays the recommendation for gradients and properties.
 
 **Geometry optimisation** (CLAIMS C6; geomeTRIC, stock gradients, one card, one run per arm):
 paracetamol r2SCAN, paracetamol B3LYP and celecoxib r2SCAN take the same 23, 26 and 16 steps as

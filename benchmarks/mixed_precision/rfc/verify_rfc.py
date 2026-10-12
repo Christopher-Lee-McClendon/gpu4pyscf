@@ -68,15 +68,34 @@ BOUND = {
         ("H100 wb97m-v mixed/stock", "0.58"),
         ("X3r H100 trio wb97m-v mixed/stock", "0.61"),
         ("H100 r2scan mixed/cache (precision effect)", "1.08"),
-        ("r2scan: lowest max |g_M - g_S| (Ha/Bohr)", "3.8e-9"),
-        ("r2scan: highest max |g_M - g_S| (Ha/Bohr)", "5.3e-8"),
-        ("B3LYP but omeprazole: lowest max |g_M - g_S|", "2.1e-8"),
-        ("B3LYP but omeprazole: highest max |g_M - g_S|", "2.7e-7"),
+        # wB97M-V at the default tolerance: PREREG-4 D2a-c (PASS, single runs), not re-measured
         ("wb97m-v: lowest max |g_M - g_S| (Ha/Bohr)", "1.2e-8"),
         ("wb97m-v: highest max |g_M - g_S| (Ha/Bohr)", "3.2e-8"),
-        ("r2scan: highest max |mu_M - mu_S| (D)", "2.4e-6"),
-        ("B3LYP but omeprazole: highest max |mu_M - mu_S| (D)", "9.3e-6"),
         ("wb97m-v: highest max |mu_M - mu_S| (D)", "5.9e-12"),
+        # r2SCAN and B3LYP at the default tolerance: PREREG-10 DR1 (PASS, triplicate), the quotable
+        # replacement for D1's UNQUOTABLE single-run cells (N12, from the raw vectors)
+        ("DR1 r2SCAN (6 cells): lowest max |g_Mk - g_Sk| over k (Ha/Bohr)", "3.2e-9"),
+        ("DR1 r2SCAN (6 cells): highest max |g_Mk - g_Sk| over k (Ha/Bohr)", "6.5e-8"),
+        ("DR1 r2SCAN (6 cells): lowest max |mu_Mk - mu_Sk| over k (D)", "2.2e-7"),
+        ("DR1 r2SCAN (6 cells): highest max |mu_Mk - mu_Sk| over k (D)", "2.9e-6"),
+        ("DR1 B3LYP but omeprazole (5 cells): lowest max |g_Mk - g_Sk| over k (Ha/Bohr)", "2.0e-8"),
+        ("DR1 B3LYP but omeprazole (5 cells): highest max |g_Mk - g_Sk| over k (Ha/Bohr)", "2.7e-7"),
+        ("DR1 B3LYP but omeprazole (5 cells): lowest max |mu_Mk - mu_Sk| over k (D)", "2.0e-7"),
+        ("DR1 B3LYP but omeprazole (5 cells): highest max |mu_Mk - mu_Sk| over k (D)", "1.0e-5"),
+        ("DR1 omeprazole B3LYP: highest over k of max |g_M - g_S| (2 s.f.)", "4.4e-6"),
+        ("DR1 omeprazole B3LYP: highest over k of max |mu_M - mu_S| (2 s.f.)", "1.9e-4"),
+        ("DR1 omeprazole B3LYP: lowest over k of max |g_M - g_R| (2 s.f.)", "1.0e-6"),
+        ("DR1 omeprazole B3LYP: highest over k of max |g_M - g_R| (3 s.f.)", "1.05e-6"),
+        ("DR1 omeprazole B3LYP: highest over k of max |g_S - g_R| (2 s.f.)", "3.4e-6"),
+        ("DR1 omeprazole B3LYP: lowest over k of max |mu_M - mu_R| (2 s.f.)", "3.5e-5"),
+        ("DR1 omeprazole B3LYP: highest over k of max |mu_M - mu_R| (2 s.f.)", "3.6e-5"),
+        ("DR1 omeprazole B3LYP: highest over k of max |mu_S - mu_R| (3 s.f.)", "1.57e-4"),
+        ("DR1: largest |E_Mk - E_Sk| over 36 pairs (Ha)", "1.7e-10"),
+        ("DR1: pairs with equal S and M cycle counts (of 36)", "33"),
+        ("DR1: C1 pairs passing (of 36)", "36"),
+        ("DR1: largest C2 LHS/bound ratio over 12 cells, gradient and dipole", "0.56"),
+        ("DR1 stock repeat scatter, r2SCAN: max over k != k' of max |g_Sk - g_Sk'| (Ha/Bohr)", "3.2e-12"),
+        ("DR1 stock repeat scatter, B3LYP: max |g_Sk - g_Sk'| (Ha/Bohr)", "5.6e-8"),
         # quotable accuracy at conv_tol_grad 3e-6 (PREREG-8 A1/A2, pods PASS): leads the section
         ("r2scan: lowest max |g_Mt - g_St|", "1.5e-9"),
         ("r2scan: highest max |g_Mt - g_St|", "2.3e-8"),
@@ -87,11 +106,6 @@ BOUND = {
         ("r2scan: highest max |mu_Mt - mu_St| (D)", "1.4e-6"),
         ("b3lyp: highest max |mu_Mt - mu_St| (D)", "8.7e-6"),
         ("wb97m-v: highest max |mu_Mt - mu_St| (D)", "4.5e-12"),
-        ("omeprazole B3LYP: max |g_M - g_S|", "4.4e-6"),
-        ("omeprazole B3LYP: max |mu_M - mu_S| (D)", "1.9e-4"),
-        ("omeprazole B3LYP: S-R over M-R", "3.4"),
-        ("lowest max |g_M - g_R| over 18 cells", "6.6e-7"),
-        ("highest max |g_S - g_R| over 18 cells", "3.4e-6"),
         ("G1 paracetamol/r2scan: warm-step SCF wall, S / M0", "1.41"),
         ("G1 celecoxib/r2scan: warm-step SCF wall, S / M0", "1.44"),
         ("G1 paracetamol/b3lyp: whole optimisation (SCF + gradient), S / MW", "1.19"),
@@ -129,15 +143,25 @@ BOUND = {
         ("H100 b3lyp mixed/stock", "0.905"),
         ("H100 wb97m-v mixed/stock", "0.577"),
         ("H100 r2scan mixed/cache (precision effect)", "1.084"),
-        ("r2scan: lowest max |g_M - g_S| (Ha/Bohr)", "3.8e-9"),
-        ("r2scan: highest max |g_M - g_S| (Ha/Bohr)", "5.3e-8"),
-        ("B3LYP but omeprazole: lowest max |g_M - g_S|", "2.1e-8"),
-        ("B3LYP but omeprazole: highest max |g_M - g_S|", "2.7e-7"),
         ("wb97m-v: lowest max |g_M - g_S| (Ha/Bohr)", "1.2e-8"),
         ("wb97m-v: highest max |g_M - g_S| (Ha/Bohr)", "3.2e-8"),
-        ("B3LYP but omeprazole: highest max |mu_M - mu_S| (D)", "9.3e-6"),
-        ("lowest max |g_M - g_R| over 18 cells", "6.6e-7"),
-        ("highest max |g_S - g_R| over 18 cells", "3.4e-6"),
+        # r2SCAN and B3LYP at the default tolerance: PREREG-10 DR1 (PASS, triplicate; N12)
+        ("DR1 r2SCAN (6 cells): lowest max |g_Mk - g_Sk| over k (Ha/Bohr)", "3.2e-9"),
+        ("DR1 r2SCAN (6 cells): highest max |g_Mk - g_Sk| over k (Ha/Bohr)", "6.5e-8"),
+        ("DR1 r2SCAN (6 cells): highest max |mu_Mk - mu_Sk| over k (D)", "2.9e-6"),
+        ("DR1 B3LYP but omeprazole (5 cells): lowest max |g_Mk - g_Sk| over k (Ha/Bohr)", "2.0e-8"),
+        ("DR1 B3LYP but omeprazole (5 cells): highest max |g_Mk - g_Sk| over k (Ha/Bohr)", "2.7e-7"),
+        ("DR1 B3LYP but omeprazole (5 cells): highest max |mu_Mk - mu_Sk| over k (D)", "1.0e-5"),
+        ("DR1 omeprazole B3LYP: highest over k of max |g_M - g_S| (2 s.f.)", "4.4e-6"),
+        ("DR1 omeprazole B3LYP: highest over k of max |mu_M - mu_S| (2 s.f.)", "1.9e-4"),
+        ("DR1 omeprazole B3LYP: lowest over k of max |g_M - g_R| (2 s.f.)", "1.0e-6"),
+        ("DR1 omeprazole B3LYP: highest over k of max |g_M - g_R| (3 s.f.)", "1.05e-6"),
+        ("DR1 omeprazole B3LYP: highest over k of max |g_S - g_R| (2 s.f.)", "3.4e-6"),
+        ("DR1 omeprazole B3LYP: lowest over k of max |mu_M - mu_R| (2 s.f.)", "3.5e-5"),
+        ("DR1 omeprazole B3LYP: highest over k of max |mu_M - mu_R| (2 s.f.)", "3.6e-5"),
+        ("DR1 omeprazole B3LYP: highest over k of max |mu_S - mu_R| (3 s.f.)", "1.57e-4"),
+        ("DR1: largest |E_Mk - E_Sk| over 36 pairs (Ha)", "1.7e-10"),
+        ("DR1: pairs with equal S and M cycle counts (of 36)", "33"),
         ("r2scan: lowest max |g_Mt - g_St|", "1.5e-9"),
         ("r2scan: highest max |g_Mt - g_St|", "2.3e-8"),
         ("b3lyp: lowest max |g_Mt - g_St|", "6.8e-9"),
@@ -152,7 +176,6 @@ BOUND = {
         ("G1: largest |E_stock(mixed endpoint) - E_S(final)| (Ha)", "3.2e-9"),
         ("G1 paracetamol/b3lyp: whole optimisation (SCF + gradient), S / M0 (the plain arm)", "1.165"),
         ("G1 celecoxib/r2scan: whole optimisation (SCF + gradient), S / M0 (the plain arm)", "1.270"),
-        ("r2scan: highest max |mu_M - mu_S| (D)", "2.4e-6"),
         ("wb97m-v: highest max |mu_M - mu_S| (D)", "5.9e-12"),
         # quotable accuracy at conv_tol_grad 3e-6 (PREREG-8 A1/A2, pods PASS): leads the section
         ("r2scan: lowest max |g_Mt - g_St|", "1.5e-9"),
@@ -164,9 +187,6 @@ BOUND = {
         ("r2scan: highest max |mu_Mt - mu_St| (D)", "1.4e-6"),
         ("b3lyp: highest max |mu_Mt - mu_St| (D)", "8.7e-6"),
         ("wb97m-v: highest max |mu_Mt - mu_St| (D)", "4.5e-12"),
-        ("omeprazole B3LYP: max |g_M - g_S|", "4.4e-6"),
-        ("omeprazole B3LYP: max |mu_M - mu_S| (D)", "1.9e-4"),
-        ("omeprazole B3LYP: S-R over M-R", "3.4"),
         ("C0 wb97m-v mixed/stock (CONTENTION-UNKNOWN)", "2.059"),
         ("W4 (CONTENDED) diphenhydramine", "1.92"),
         ("W4 (CONTENDED) propranolol", "2.13"),
@@ -179,22 +199,28 @@ BOUND = {
     ],
 }
 
-# ISSUE_DRAFT.md prints every headline figure of RFC_ISSUE.md except these: it folds the per-functional
-# accuracy table into one gradient range (lowest r2SCAN to highest B3LYP-but-omeprazole) and one dipole
-# ceiling (highest B3LYP-but-omeprazole), so the inner endpoints are not printed there. Deriving the list
+# ISSUE_DRAFT.md prints every headline figure of RFC_ISSUE.md except these: it gives the default-tolerance
+# accuracy in one paragraph (the r2SCAN/B3LYP triplicate's gradient ranges and dipole ceilings, omeprazole
+# B3LYP, |dE| and cycles), so the dipole floors, the wB97M-V row and the C2 / scatter details are not
+# printed there. Deriving the list
 # from RFC_ISSUE.md's keeps the draft bound to the source: a figure revised in the source becomes a stale
 # binding in the draft until the draft is revised too.
 _NOT_IN_DRAFT = {
-    # default-tolerance dipole context: the draft leads with the quotable 3e-6 figures and keeps the
-    # default run to one sentence (residual, gradient range, omeprazole gradient, the failed gate)
-    "B3LYP but omeprazole: highest max |mu_M - mu_S| (D)",
-    "omeprazole B3LYP: max |mu_M - mu_S| (D)",
-    "r2scan: highest max |g_M - g_S| (Ha/Bohr)",
-    "B3LYP but omeprazole: lowest max |g_M - g_S|",
+    # wB97M-V at the default tolerance (D2): the draft gives only the r2SCAN/B3LYP triplicate there
     "wb97m-v: lowest max |g_M - g_S| (Ha/Bohr)",
     "wb97m-v: highest max |g_M - g_S| (Ha/Bohr)",
-    "r2scan: highest max |mu_M - mu_S| (D)",
     "wb97m-v: highest max |mu_M - mu_S| (D)",
+    # the triplicate (DR1) in the draft's one paragraph: gradient ranges, dipole ceilings, omeprazole's
+    # M-S and gradient M-R / S-R, |dE|, cycles; not the dipole floors, omeprazole's dipole M-R / S-R,
+    # the C2 ratio or stock's scatter
+    "DR1 r2SCAN (6 cells): lowest max |mu_Mk - mu_Sk| over k (D)",
+    "DR1 B3LYP but omeprazole (5 cells): lowest max |mu_Mk - mu_Sk| over k (D)",
+    "DR1 omeprazole B3LYP: lowest over k of max |mu_M - mu_R| (2 s.f.)",
+    "DR1 omeprazole B3LYP: highest over k of max |mu_M - mu_R| (2 s.f.)",
+    "DR1 omeprazole B3LYP: highest over k of max |mu_S - mu_R| (3 s.f.)",
+    "DR1: largest C2 LHS/bound ratio over 12 cells, gradient and dipole",
+    "DR1 stock repeat scatter, r2SCAN: max over k != k' of max |g_Sk - g_Sk'| (Ha/Bohr)",
+    "DR1 stock repeat scatter, B3LYP: max |g_Sk - g_Sk'| (Ha/Bohr)",
 }
 BOUND["ISSUE_DRAFT.md"] = [b for b in BOUND["RFC_ISSUE.md"] if b[0] not in _NOT_IN_DRAFT]
 assert len(BOUND["ISSUE_DRAFT.md"]) == len(BOUND["RFC_ISSUE.md"]) - len(_NOT_IN_DRAFT), \

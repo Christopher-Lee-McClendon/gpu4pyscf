@@ -204,7 +204,7 @@ arithmetic's gain, with the cache's own gain removed.
   1.633) and is not claimed.
 - The L40S row rests on a single pod per cell.
 
-## C4. Accuracy: mixed converges to stock's own iterate; the precision imprint is 4e-9 to 2.7e-7 Ha/Bohr `[N4, N7, N9, N10]`
+## C4. Accuracy: mixed converges to stock's own iterate; the precision imprint is 3e-9 to 2.7e-7 Ha/Bohr `[N4, N7, N9, N10, N12]`
 
 **Setup.** Each downstream cell ran four arms:
 - R, a tight stock reference (`conv_tol 1e-11`, `conv_tol_grad 3e-6`);
@@ -217,12 +217,49 @@ The campaign SCFs use `conv_tol 1e-9` and the library-default `conv_tol_grad` �
 **The comparison that isolates precision is M against S.** Before 2026-10-08 this section compared
 M with R. The S arm was recorded in every sentinel but never read (see the ledger).
 
-| | gradient, max \|M−S\| (Ha/Bohr) | dipole, max \|M−S\| (D) |
+**Quotable at the default `conv_tol_grad`, r2SCAN and B3LYP: DR1, in triplicate (PREREG-10,
+`STATUS=PASS`) `[N12]`.** D1's twelve cells (six molecules × r2SCAN/B3LYP, the same settings and
+fork tree `63af0568`) were measured again on one new pod, each as R, then three same-guess pairs
+S_k/M_k (k = 1..3, S first in k = 1 and 3, M first in k = 2), under gates on the claim itself:
+- **C1**, every pair: both converged, |E_M − E_S| ≤ 1e-8 Ha, cycles within ±1. **36 of 36 pairs.**
+  Every |ΔE| is ≤ 1.7e-10 Ha. Cycles are equal in **33 of 36**; the three exceptions are omeprazole
+  B3LYP, M 14 against S 13 in every k, as in D1.
+- **C2**, per cell: max_k |M_k − R| ≤ 2 · max_k |S_k − R| + 1e-7 Ha/Bohr (gradient) and + 1e-5 D
+  (dipole), i.e. mixed is no further from the converged answer than twice stock's own distance.
+  **12 of 12**; the largest left side over bound is 0.56 (fluconazole B3LYP, gradient).
+- **C3**: R converged, **12 of 12**. Idle power 75.6 W: not CONTENDED.
+- **This protocol was redesigned after seeing D1, and says so.** Its gates were chosen with D1's
+  and A1's values in hand (C2 would have passed every D1 and A1 cell). It is a new measurement
+  with its own gates, not a re-evaluation of D1, which stays FAIL and UNQUOTABLE.
+
+| mixed vs stock, range over the cells and the three repeats | gradient, max \|M−S\| (Ha/Bohr) | dipole, max \|M−S\| (D) |
+|---|---|---|
+| **r2SCAN (6 cells; DR1, PASS)** | **3.2e-9 – 6.5e-8** | **2.2e-7 – 2.9e-6** |
+| **B3LYP (5 cells, not omeprazole; DR1, PASS)** | **2.0e-8 – 2.7e-7** | **2.0e-7 – 1.0e-5** |
+| **omeprazole B3LYP (DR1, PASS)** | **4.4e-6** (4.39e-6 – 4.44e-6) | **1.9e-4** (1.92e-4 – 1.93e-4) |
+| wB97M-V (6 cells; pods D2a–c, PASS; single run) | 1.2e-8 – 3.2e-8 | 1.2e-12 – 5.9e-12 |
+
+- **Omeprazole B3LYP reproduces D1 three times over:** one extra mixed cycle, and mixed is closer
+  to R than stock in every k: gradient M−R 1.0e-6 – 1.05e-6 against S−R 3.38e-6 – 3.39e-6
+  (about 3.4e-6); dipole M−R 3.5e-5 – 3.6e-5 D against S−R 1.57e-4 D. Its raw M−S dipole is above
+  1e-4 D in every k, as predicted; it is disclosed, not gated.
+- **Stock's own repeat scatter** (max over k ≠ k′, same process, same guess): r2SCAN ≤ 3.2e-12
+  Ha/Bohr and ≤ 1.9e-11 D; B3LYP ≤ 5.6e-8 Ha/Bohr (omeprazole) and ≤ 5.6e-12 D. The B3LYP gradient
+  scatter was predicted ≤ 3e-8: a MODEL-MISS (ledger). It is stock's own non-determinism.
+- Scope: one PRO 6000 Workstation, def2-mTZVPP, the six molecules, r2SCAN and B3LYP. wB97M-V's
+  default-tolerance cells are D2's (single runs, PASS) and were not re-measured.
+
+**Historical context: D1, UNQUOTABLE.** The first, single-run measurement of the same twelve cells
+(PREREG-4 D1) failed one pre-registered gate (see Gates below), so its numbers are shown only with
+that label. DR1's ranges agree with them:
+
+| D1, single run (UNQUOTABLE) | gradient, max \|M−S\| (Ha/Bohr) | dipole, max \|M−S\| (D) |
 |---|---|---|
 | r2SCAN (6 cells; pod D1, UNQUOTABLE, see Gates) | 3.8e-9 – 5.3e-8 | 3.0e-7 – 2.4e-6 |
 | B3LYP (5 cells; pod D1, UNQUOTABLE) | 2.1e-8 – 2.7e-7 | 2.0e-7 – 9.3e-6 |
-| wB97M-V (6 cells; pods D2a–c, PASS) | 1.2e-8 – 3.2e-8 | 1.2e-12 – 5.9e-12 |
 | omeprazole B3LYP (pod D1, UNQUOTABLE) | 4.4e-6 | 1.9e-4 |
+
+The bullets that follow analyse D1 and D2 (18 cells, one run each).
 
 - **In 17 of 18 cells, M and S stop at essentially the same iterate.**
   - M−R and S−R point the same way (cosine +0.98 to +1.000).
@@ -551,9 +588,10 @@ is a fresh process with the caches as shown. Cold extra = cold wall − warm wal
     (`d05888b8`), 7.5 min before the first dispatch.
   - **The exact harness bytes.** `provenance/harness/` is the harness at `5013b101`, the commit
     the PREREG-8 pods ran. Every earlier pod ran at the earlier commit listed in `pods.csv`. The
-    PREREG-9 pods (LD1, LD2) ran at `e1cc2bb5`, which adds the `defaults` mode; that harness is
-    **not** snapshotted here, only its extractor (`provenance/rfcbench_extract.py`), which
-    re-extracts every earlier CSV unchanged (group P2).
+    PREREG-9 pods (LD1, LD2) ran at `e1cc2bb5`, which adds the `defaults` mode, and the PREREG-10
+    pod (DR1) at `16aa4e3a`, which adds the `downrep` mode. Those harnesses are **not**
+    snapshotted here, only the later extractor (`provenance/rfcbench_extract.py`, at `16aa4e3a`),
+    which re-extracts every earlier CSV unchanged (group P2).
 - **Dates.** A few status dates and one RESULT date in `prereg/` are a day late. See the ledger.
 - **`reproduce_native.py`** transcribes the measurement path and has not been run on a GPU in this
   form.
@@ -614,6 +652,19 @@ is a fresh process with the caches as shown. Cold extra = cold wall − warm wal
 - PREREG-9: P-4 B3LYP, the FP32 switch without the cache on the campaign grid (predicted 1.80, band
   1.65–1.90): measured 1.954, above the band. The model had scaled the banked anchor down by a cache
   effect of about 4 %; the measured cache effect for B3LYP is 1.007.
+- PREREG-10: stock's own B3LYP gradient repeat scatter, predicted ≤ 3e-8 Ha/Bohr in every cell (the
+  protocol flagged it as at its edge; A1's maximum was 2.9e-8): measured 5.6e-8, in omeprazole
+  B3LYP. It is stock against stock, so it says nothing about the mode; every other PREREG-10
+  prediction was met.
+
+**A protocol redesigned after seeing the data it replaces (PREREG-10).** D1 failed its
+pre-registered dipole gate on stock's own convergence residual (fluconazole r2SCAN, M−R 1.004e-4 D
+against a 1e-4 D ceiling, with S−R 9.93e-5 D and M−S 1.05e-6 D). PREREG-10 then re-measured D1's
+twelve cells in triplicate under new gates (C1 mixed vs stock, C2 mixed vs twice stock's distance
+from R, C3 R converged), written with D1's and A1's values in hand; C2 would have passed every D1
+and A1 cell, and the protocol says so. D1 stays FAIL and UNQUOTABLE on record; DR1's PASS makes
+only DR1's own figures quotable. The pod was dispatched 53 s after the protocol commit, and ran
+that commit (`16aa4e3a`).
 
 **Replication falsifier fired:** PREREG-7 X3r. H100 B3LYP mixed/stock moved by 0.115 (> 0.10), so it
 is quoted as the range 0.905–1.021. The L12 replication's falsifier did not fire.
@@ -655,6 +706,7 @@ listed numbers are checked by `verify_native.py`:
 | PREREG-7 RESULT, headline | "both replications hold on their geomeans" | the X3r falsifier fired on a geomean; L12r's could not be run as registered |
 | PREREG-7 RESULT, X3r idle | "higher than any Blackwell pod here" | ST2 idled at 241 W |
 | PREREG-7 RESULT, stock-vs-stock floor | ≤ 2.8e-12 Ha | 3.2e-12 Ha when CC1 is pooled across phases (2.3e-12 within a phase) |
+| PREREG-10 RESULT, omeprazole B3LYP S−R gradient | 3.38e-6 | 3.38e-6 – 3.39e-6 over k (k = 1 reads 3.3853e-6); about 3.4e-6 |
 | PREREG-4 RESULT and its erratum, C4 | "a same-guess comparator was not recorded"; "mixed-specific residual" for ρ > 3; r2SCAN paracetamol's residual "systematic" | the same-guess comparator S was recorded in every sentinel and never read. M−R ≈ S−R in 17 of 18 cells: the residual is stock's convergence-tolerance residual. The precision imprint is M−S, 4e-9 to 2.7e-7 Ha/Bohr (PREREG-4 erratum 2) |
 
 **Procedural lapses:**

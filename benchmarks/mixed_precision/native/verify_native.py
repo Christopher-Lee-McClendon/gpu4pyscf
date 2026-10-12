@@ -60,6 +60,9 @@ KNOWN_DISCREPANCIES = {
         ("0.115", "PREREG-7 RESULT printed 0.116 (difference of rounded geomeans); still > 0.10"),
     ("N8", "X3r - X3, r2scan mixed/cache"):
         ("-0.001", "PREREG-7 RESULT printed 0.000 (difference of rounded geomeans)"),
+    ("N12", "DR1 omeprazole B3LYP: highest over k of max |g_S - g_R| (3 s.f.)"):
+        ("3.39e-06", "PREREG-10 RESULT printed one value, 3.38e-6; k = 1 reads 3.3853e-6, so the range over k is "
+                     "3.38e-6 - 3.39e-6"),
 }
 
 
@@ -660,6 +663,8 @@ PROV = os.path.join(HERE, "provenance")
 EXTRA_PODS = ("cc1", "cs1", "st1", "st2", "st2r")
 # PREREG-9's library-defaults pods, pinned with their cell counts (kind `defaults`, five arms).
 DEFAULTS_PODS = {"ld1": 6, "ld2": 3}
+# PREREG-10's triplicate downstream pod, pinned with its cell count (kind `downrep`, seven runs).
+DOWNREP_PODS = {"dr1": 12}
 
 
 def _extractor():
@@ -723,6 +728,11 @@ def _flags_match(name):
                 and p["speed_cells"] == "0" and len(out["cells"]) == 0
                 and len(out["defaults"]) == DEFAULTS_PODS[name]
                 and all(c["status"] == "OK" and c["fit"] == "TREATED" for c in out["defaults"]))
+    if name in DOWNREP_PODS:   # PREREG-10: `downrep` cells only (seven runs), no speed cells; pinned count
+        return (common and str(out["noisy"]) == p["noisy_cells"] and str(out["degraded"]) == p["degraded"]
+                and p["speed_cells"] == "0" and len(out["cells"]) == 0
+                and len(out["downrep"]) == DOWNREP_PODS[name]
+                and all(c["status"] == "OK" and c["fit"] == "TREATED" for c in out["downrep"]))
     return (common and str(out["noisy"]) == p["noisy_cells"] and str(out["degraded"]) == p["degraded"]
             and str(len(out["cells"])) == p["speed_cells"])
 
@@ -1706,6 +1716,179 @@ check_true("N11", "TIMELINE: LD2 was created after LD1 finished (serialised), an
                 > min(_t(r["time_utc"]) for r in _timeline() if r["kind"] == "run finished" and r["what"] == "ld2")))
 
 
+# --------------------------------------------------------------------------------------------- #
+# N12. PREREG-10: D1's twelve downstream cells in triplicate at the default conv_tol_grad (DR1).
+# Every figure is recomputed from the raw gradient and dipole vectors in the sentinel (RFCBENCH_CELL,
+# one line per run), never from the pod's readings; the extractor's readings must then agree.
+# --------------------------------------------------------------------------------------------- #
+DR_RUNS = ("R", "S1", "M1", "M2", "S2", "S3", "M3")
+DR_PAIRS = ((1, "S1", "M1"), (2, "S2", "M2"), (3, "S3", "M3"))
+DR_MOLS = ("paracetamol", "propranolol", "celecoxib", "fluconazole", "warfarin", "omeprazole")
+DR_KEYS = [f"downrep/{m}/{x}/mtzvpp" for x in ("r2scan", "b3lyp") for m in DR_MOLS]
+
+
+def _dr_cells():
+    import json
+    out, order = {}, {}
+    for ln in _sentinel("dr1").decode().splitlines():
+        if ln.startswith("RFCBENCH_CELL ") and '"downrep/' in ln:
+            d = json.loads(ln.split(" ", 1)[1])
+            if len(d["runs"]) != 1 or d["runs"][0]["run"] != d["run"]:
+                raise ValueError(f"{d['key']} {d['run']}: expected one record for the run")
+            out.setdefault(d["key"], {})[d["run"]] = d["runs"][0]
+            order.setdefault(d["key"], []).append(d["run"])
+    return out, order
+
+
+try:
+    DR, DR_ORDER = _dr_cells()
+except Exception as _e:
+    DR, DR_ORDER = {}, {}
+    results.append(("N12", "DR1 cells parsed from the sentinel", f"ERROR {type(_e).__name__}: {_e}", "True", False))
+_ome = "downrep/omeprazole/b3lyp/mtzvpp"
+
+
+def _dr_c1(c, k, s, m):
+    return (c[s]["converged"] is True and c[m]["converged"] is True
+            and abs(c[m]["e"] - c[s]["e"]) <= 1e-8 and abs(c[m]["cycles"] - c[s]["cycles"]) <= 1)
+
+
+def _dr_c2(c):
+    """(LHS/bound for the gradient, LHS/bound for the dipole): C2 holds when both are <= 1."""
+    g_m = max(_vd(c, m, "R") for _, s, m in DR_PAIRS)
+    g_s = max(_vd(c, s, "R") for _, s, m in DR_PAIRS)
+    u_m = max(_vd(c, m, "R", "dip") for _, s, m in DR_PAIRS)
+    u_s = max(_vd(c, s, "R", "dip") for _, s, m in DR_PAIRS)
+    return g_m / (2 * g_s + 1e-7), u_m / (2 * u_s + 1e-5)
+
+
+def _dr_ms(xc, what="grad", skip=()):
+    return [_vd(DR[k], m, s, what) for k in DR_KEYS if f"/{xc}/" in k and k not in skip for _, s, m in DR_PAIRS]
+
+
+def _dr_scatter(xc, what="grad"):
+    return max(_vd(DR[k], a, b, what) for k in DR_KEYS if f"/{xc}/" in k
+               for a, b in (("S1", "S2"), ("S1", "S3"), ("S2", "S3")))
+
+
+def _dr_ome(a, b, what="grad"):
+    return [_vd(DR[_ome], f"{a}{k}" if a != "R" else "R", f"{b}{k}" if b != "R" else "R", what) for k in (1, 2, 3)]
+
+
+check_true("N12", "DR1: the twelve D1 cells, each with the seven runs once, in the order R S1 M1 M2 S2 S3 M3",
+           lambda: sorted(DR) == sorted(DR_KEYS) and all(DR_ORDER[k] == list(DR_RUNS) for k in DR_KEYS))
+for _k in DR_KEYS:
+    _lab = "/".join(_k.split("/")[1:3])
+    check_true("N12", f"DR1 {_lab}: C1 holds for k = 1, 2, 3 (both converged, |dE| <= 1e-8 Ha, cycles +-1)",
+               lambda k=_k: all(_dr_c1(DR[k], *p) for p in DR_PAIRS))
+    check_true("N12", f"DR1 {_lab}: C2 holds (max_k |M-R| <= 2 max_k |S-R| + floor, gradient and dipole)",
+               lambda k=_k: max(_dr_c2(DR[k])) <= 1.0)
+    check_true("N12", f"DR1 {_lab}: C3 holds (R converged)", lambda k=_k: DR[k]["R"]["converged"] is True)
+check("N12", "DR1: C1 pairs passing (of 36)",
+      lambda: sum(_dr_c1(DR[k], *p) for k in DR_KEYS for p in DR_PAIRS), "36")
+check("N12", "DR1: C2 cells passing (of 12)", lambda: sum(max(_dr_c2(DR[k])) <= 1.0 for k in DR_KEYS), "12")
+check("N12", "DR1: C3 cells passing (of 12)", lambda: sum(DR[k]["R"]["converged"] is True for k in DR_KEYS), "12")
+check("N12", "DR1: largest C2 LHS/bound ratio over 12 cells, gradient and dipole",
+      lambda: max(max(_dr_c2(DR[k])) for k in DR_KEYS), "0.56")
+check_true("N12", "DR1: the largest C2 ratio is fluconazole B3LYP's gradient",
+           lambda: max(DR_KEYS, key=lambda k: max(_dr_c2(DR[k]))) == "downrep/fluconazole/b3lyp/mtzvpp"
+           and _dr_c2(DR["downrep/fluconazole/b3lyp/mtzvpp"])[0] > _dr_c2(DR["downrep/fluconazole/b3lyp/mtzvpp"])[1])
+check("N12", "DR1: largest |E_Mk - E_Sk| over 36 pairs (Ha)",
+      lambda: max(abs(DR[k][m]["e"] - DR[k][s]["e"]) for k in DR_KEYS for _, s, m in DR_PAIRS), "1.7e-10")
+check("N12", "DR1: pairs with equal S and M cycle counts (of 36)",
+      lambda: sum(DR[k][m]["cycles"] == DR[k][s]["cycles"] for k in DR_KEYS for _, s, m in DR_PAIRS), "33")
+check_true("N12", "DR1: the 3 unequal pairs are omeprazole B3LYP, S 13 and M 14 cycles in every k",
+           lambda: [(k, DR[k][s]["cycles"], DR[k][m]["cycles"]) for k in DR_KEYS for _, s, m in DR_PAIRS
+                    if DR[k][m]["cycles"] != DR[k][s]["cycles"]] == [(_ome, 13, 14)] * 3)
+for _xc, _skip, _lab, _vals in (("r2scan", (), "r2SCAN (6 cells)", ("3.2e-9", "6.5e-8", "2.2e-7", "2.9e-6")),
+                                ("b3lyp", (_ome,), "B3LYP but omeprazole (5 cells)", ("2.0e-8", "2.7e-7", "2.0e-7", "1.0e-5"))):
+    for _w, _u, _lo, _hi in (("grad", "Ha/Bohr", _vals[0], _vals[1]), ("dip", "D", _vals[2], _vals[3])):
+        _q = "g" if _w == "grad" else "mu"
+        check("N12", f"DR1 {_lab}: lowest max |{_q}_Mk - {_q}_Sk| over k ({_u})",
+              lambda xc=_xc, w=_w, sk=_skip: min(_dr_ms(xc, w, sk)), _lo)
+        check("N12", f"DR1 {_lab}: highest max |{_q}_Mk - {_q}_Sk| over k ({_u})",
+              lambda xc=_xc, w=_w, sk=_skip: max(_dr_ms(xc, w, sk)), _hi)
+for _a, _b, _w, _vals in (("M", "S", "grad", (("lowest", min, "4.39e-6"), ("highest", max, "4.44e-6"), ("highest", max, "4.4e-6"))),
+                          ("M", "S", "dip", (("lowest", min, "1.92e-4"), ("highest", max, "1.93e-4"), ("highest", max, "1.9e-4"))),
+                          ("M", "R", "grad", (("lowest", min, "1.0e-6"), ("highest", max, "1.05e-6"))),
+                          ("S", "R", "grad", (("lowest", min, "3.38e-6"), ("highest", max, "3.38e-6"),
+                                              ("highest", max, "3.4e-6"))),
+                          ("M", "R", "dip", (("lowest", min, "3.5e-5"), ("highest", max, "3.6e-5"))),
+                          ("S", "R", "dip", (("highest", max, "1.57e-4"),))):
+    for _word, _f, _v in _vals:
+        _q = "g" if _w == "grad" else "mu"
+        check("N12", f"DR1 omeprazole B3LYP: {_word} over k of max |{_q}_{_a} - {_q}_{_b}| "
+                     f"({len(_v.split('e')[0].replace('.', ''))} s.f.)",
+              lambda a=_a, b=_b, w=_w, f=_f: f(_dr_ome(a, b, w)), _v)
+check_true("N12", "DR1 omeprazole B3LYP: M-S dipole in (1e-4, 3.8e-4] D in every k (predicted; disclosed, not gated)",
+           lambda: all(1e-4 < v <= 3.8e-4 for v in _dr_ome("M", "S", "dip")))
+check_true("N12", "DR1 omeprazole B3LYP: M closer to R than S in every k, gradient and dipole",
+           lambda: all(m < s for m, s in zip(_dr_ome("M", "R"), _dr_ome("S", "R")))
+           and all(m < s for m, s in zip(_dr_ome("M", "R", "dip"), _dr_ome("S", "R", "dip"))))
+check("N12", "DR1 stock repeat scatter, r2SCAN: max over k != k' of max |g_Sk - g_Sk'| (Ha/Bohr)",
+      lambda: _dr_scatter("r2scan"), "3.2e-12")
+check("N12", "DR1 stock repeat scatter, r2SCAN: max |mu_Sk - mu_Sk'| (D)", lambda: _dr_scatter("r2scan", "dip"), "1.9e-11")
+check("N12", "DR1 stock repeat scatter, B3LYP: max |g_Sk - g_Sk'| (Ha/Bohr)", lambda: _dr_scatter("b3lyp"), "5.6e-8")
+check("N12", "DR1 stock repeat scatter, B3LYP: max |mu_Sk - mu_Sk'| (D)", lambda: _dr_scatter("b3lyp", "dip"), "5.6e-12")
+check_true("N12", "DR1 predictions: B3LYP gradient scatter above 3e-8 (the MODEL-MISS), worst in omeprazole; "
+                  "r2SCAN gradient <= 1e-11 and both dipole scatters <= 1e-10 (met)",
+           lambda: _dr_scatter("b3lyp") > 3e-8
+           and max(DR_KEYS[6:], key=lambda k: max(_vd(DR[k], a, b) for a, b in (("S1", "S2"), ("S1", "S3"), ("S2", "S3")))) == _ome
+           and _dr_scatter("r2scan") <= 1e-11 and _dr_scatter("r2scan", "dip") <= 1e-10 and _dr_scatter("b3lyp", "dip") <= 1e-10)
+check_true("N12", "DR1 observation: M runs carry the campaign policy, the fp64+fp32 cache tier and an FP64 tail; "
+                  "stock runs carry no policy and no record; one init_guess, not 'atom'; S/M at conv_tol 1e-9 and the "
+                  "default conv_tol_grad, R at 1e-11 / 3e-6",
+           lambda: all((DR[k][r]["rec"]["policy"] == POLICY[(k.split("/")[2], "mixed")]
+                        and DR[k][r]["rec"]["ao_cache_tier"] == "fp64+fp32" and DR[k][r]["rec"]["fp64_tail"] is True)
+                       if r.startswith("M") else (DR[k][r]["mp_none"] is True and DR[k][r]["rec_none"] is True)
+                       for k in DR_KEYS for r in DR_RUNS)
+           and {DR[k][r]["settings"]["init_guess"] for k in DR_KEYS for r in DR_RUNS} == {"minao"}
+           and all((DR[k][r]["settings"]["conv_tol"], DR[k][r]["settings"]["conv_tol_grad"])
+                   == ((1e-11, 3e-6) if r == "R" else (1e-9, None)) for k in DR_KEYS for r in DR_RUNS))
+
+
+def _dr_extractor_agrees():
+    """The shipped extractor's DR1 readings equal this recomputation, cell by cell, and its summary
+    reads PASS, quotable, the falsifier NOT FIRED, and one MODEL-MISS (B3LYP gradient scatter)."""
+    X = _extractor()
+    out = X.extract(_sentinel("dr1").decode(), pod("dr1")["run_id"], unquotable=True)
+    cells = {c["key"]: c for c in out["downrep"]}
+    for k in DR_KEYS:
+        c, x = DR[k], cells[k]
+        for kk, s, m in DR_PAIRS:
+            pk = x["per_k"][str(kk)]
+            mine = {"dg_MS": _vd(c, m, s), "dmu_MS": _vd(c, m, s, "dip"), "dg_SR": _vd(c, s, "R"),
+                    "dmu_SR": _vd(c, s, "R", "dip"), "dg_MR": _vd(c, m, "R"), "dmu_MR": _vd(c, m, "R", "dip"),
+                    "de_MS": abs(c[m]["e"] - c[s]["e"])}
+            if any(pk[q] != v for q, v in mine.items()) or x["c1"][str(kk)] != _dr_c1(c, kk, s, m):
+                return False
+        if (x["c2_ok"] is not (max(_dr_c2(c)) <= 1.0) or x["r_converged"] is not c["R"]["converged"]
+                or x["status"] != "OK" or x["fit"] != "TREATED"):
+            return False
+    s = out["prereg10"]
+    miss = [p for p, v in s["predictions"].items() if v != "MET"]
+    return (s["quotable"] is True and s["falsifier"] == "NOT FIRED" and not s["disagreements"]
+            and (s["c1_pairs_pass"], s["c2_cells_pass"], s["c3_cells_pass"]) == (36, 12, 12)
+            and miss == ["b3lyp stock scatter grad <= 3e-08"] and out["contended"] is False)
+
+
+check_true("N12", "DR1: the shipped extractor's per-cell readings and verdicts equal this recomputation; "
+                  "its summary is quotable, falsifier NOT FIRED, one MODEL-MISS", _dr_extractor_agrees)
+check("N12", "DR1 idle power before the first group (W; CONTENDED above 200)", lambda: float(pod("dr1")["idle_power_w"]), "75.6")
+check("N12", "seconds from the PREREG-10 protocol commit (16aa4e3a, the commit DR1 ran) to the DR1 dispatch",
+      lambda: (min(_t(r["time_utc"]) for r in _timeline() if r["kind"] == "run created" and r["what"] == "dr1")
+               - max(_t(r["time_utc"]) for r in _timeline() if r["kind"] == "protocol commit"
+                     and r["ref"].startswith("16aa4e3a"))).total_seconds(), "53")
+check_true("N12", "TIMELINE: DR1 was created after the PREREG-10 protocol commit it ran (16aa4e3a), "
+                  "and the PREREG-10 RESULT commits follow DR1's finish",
+           lambda: (min(_t(r["time_utc"]) for r in _timeline() if r["kind"] == "run created" and r["what"] == "dr1")
+                    > max(_t(r["time_utc"]) for r in _timeline() if r["kind"] == "protocol commit"
+                          and r["ref"].startswith("16aa4e3a")))
+           and min(_t(r["time_utc"]) for r in _timeline() if r["kind"] == "protocol commit"
+                   and r["what"].startswith("PREREG-rfcbench-10") and not r["ref"].startswith("16aa4e3a"))
+           > min(_t(r["time_utc"]) for r in _timeline() if r["kind"] == "run finished" and r["what"] == "dr1"))
+
+
 def data_integrity():
     """Every file in data/ must be listed in data/SHA256SUMS with a matching hash, and every listed
     file must exist: a missing, extra or edited data file is a FAIL before any number is read."""
@@ -1729,7 +1912,7 @@ def data_integrity():
     return probs
 
 
-EXPECTED_CHECKS = 951   # pinned: a check that silently disappears (or appears) is a FAIL
+EXPECTED_CHECKS = 1033   # pinned: a check that silently disappears (or appears) is a FAIL
 
 
 def main():

@@ -132,15 +132,17 @@ default `conv_tol_grad`. The library defaults were measured separately on three 
   `conv_tol_grad = 3e-6`, 14 cells of which wB97M-V is 2): gradients within 1.5e-9 – 2.3e-8
   (r2SCAN), 6.8e-9 – 2.2e-7 (B3LYP) and 1.1e-8 – 2.1e-8 (wB97M-V) Ha/Bohr; dipoles ≤ 1.4e-6 /
   8.7e-6 / 4.5e-12 D; identical cycle counts in every cell. Caveat: the tighter tolerance, not the
-  default. At the default `conv_tol_grad` (context; 18 cells): gradients 3.8e-9 – 5.3e-8 / 2.1e-8 –
-  2.7e-7 (B3LYP, 5 of 6 cells) / 1.2e-8 – 3.2e-8 Ha/Bohr, dipoles within 2.4e-6 / 9.3e-6 / 5.9e-12 D;
-  omeprazole B3LYP took one extra cycle and sits 4.4e-6 Ha/Bohr and 1.9e-4 D from S but 3.4× closer
-  than stock to the tight stock reference R (`conv_tol` 1e-11); against R every \|ΔE\| is
-  ≤ 1.6e-10 Ha and both arms carry the same 6.6e-7 – 3.4e-6 Ha/Bohr residual, set by the default
-  `conv_tol_grad`. Label: the pod that ran the 12 r2SCAN and B3LYP default-tolerance cells is
-  `STATUS=FAIL` on one pre-registered gate, fluconazole r2SCAN's dipole against R (1.004e-4 D against
-  a 1e-4 D ceiling; stock's own S−R is 9.93e-5 D, M−S 1.05e-6 D), so those 12 cells are UNQUOTABLE
-  under the campaign's rules; the tight-tolerance figures are the quotable ones.
+  default. At the default `conv_tol_grad`, quotable from a triplicate pod (PREREG-10 DR1, PASS; 36
+  same-guess pairs, \|ΔE\| ≤ 1.7e-10 Ha, equal cycles in 33 of 36): gradients 3.2e-9 – 6.5e-8
+  (r2SCAN) and 2.0e-8 – 2.7e-7 (B3LYP, 5 of 6 molecules) Ha/Bohr, dipoles within 2.9e-6 / 1.0e-5 D;
+  omeprazole B3LYP takes one extra cycle in every repeat and sits 4.4e-6 Ha/Bohr and 1.9e-4 D from
+  S, but closer than stock to the tight stock reference R (`conv_tol` 1e-11): gradient 1.0e-6 –
+  1.05e-6 against 3.4e-6, dipole 3.5e-5 – 3.6e-5 against 1.57e-4 D. wB97M-V (single runs, PREREG-4
+  D2a–c, PASS): 1.2e-8 – 3.2e-8 Ha/Bohr, dipoles within 5.9e-12 D. Label: an earlier single-run pod
+  for the r2SCAN and B3LYP cells (PREREG-4 D1) is `STATUS=FAIL` on one pre-registered gate, a dipole
+  residual stock itself carries (fluconazole r2SCAN, 1.004e-4 D against a 1e-4 D ceiling), and stays
+  UNQUOTABLE; the protocol was redesigned after seeing it and re-run in triplicate. The
+  tight-tolerance figures stay the recommendation for gradients and properties.
 - **Geometry optimisation** (CLAIMS C6; three geomeTRIC runs, stock gradients, one run per arm):
   identical step counts (23, 26, 16), endpoints within 9.9e-6 Å of stock, warm-step SCF 1.41–1.44
   and whole optimisation 1.19–1.30 faster; every endpoint passes a stock certificate (\|ΔE\| ≤

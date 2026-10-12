@@ -73,6 +73,24 @@ PREDICTED_DEFAULT = {"r2scan": (1.35, 1.65), "b3lyp": (1.25, 1.65), "wb97m-v": (
 PREDICTED_NOCACHE = {"r2scan": (1.45, 1.70), "b3lyp": (1.65, 1.90), "wb97m-v": (2.60, 3.10)}
 
 
+# PREREG-rfcbench-10 (mode `downrep`): D1's twelve cells in triplicate. The extractor RECOMPUTES every
+# reading and the C1 / C2 verdicts from the streamed raw records (energies, cycles, gradients and
+# dipoles), independently of the pod's judge, and reports any disagreement with the pod's status.
+# The gate constants are the protocol's (pinned equal to rfcbench_cells' by a host test).
+DOWNREP_RUNS = ("R", "S1", "M1", "M2", "S2", "S3", "M3")
+DOWNREP_PAIRS = ((1, "S1", "M1"), (2, "S2", "M2"), (3, "S3", "M3"))
+DOWNREP_MOLS = ("paracetamol", "propranolol", "celecoxib", "fluconazole", "warfarin", "omeprazole")
+DOWNREP_XCS = ("r2scan", "b3lyp")
+DR_C1_E_TOL, DR_C1_CYCLES = 1e-8, 1
+DR_C2_FACTOR, DR_C2_FLOOR_G, DR_C2_FLOOR_MU = 2.0, 1e-7, 1e-5
+# Predictions, fixed in PREREG-10 before the dispatch (disclosed, never gated).
+PRED_C1_PAIRS = 36
+PRED_C2_CELLS = 12
+PRED_OMEPRAZOLE_B3LYP_DMU_MS = (1e-4, 3.8e-4)        # every k: above the first, at most the second
+PRED_STOCK_SCATTER_G = {"r2scan": 1e-11, "b3lyp": 3e-8}   # max over k != k' (Ha/Bohr)
+PRED_STOCK_SCATTER_MU = 1e-10                        # both functionals (Debye)
+
+
 class RefusedSentinel(Exception):
     pass
 
@@ -284,6 +302,162 @@ def defaults_summary(outs):
     return out
 
 
+def _dr_flat(x):
+    if isinstance(x, (list, tuple)):
+        return [v for e in x for v in _dr_flat(e)]
+    return [x]
+
+
+def _dr_maxabs(a, b):
+    """max |a - b| over two equal-shape nested lists; None on a shape mismatch, an empty vector, a
+    non-number or a non-finite entry (NaN is never 0.0)."""
+    try:
+        fa, fb = _dr_flat(a), _dr_flat(b)
+        if len(fa) != len(fb) or not fa:
+            return None
+        out = 0.0
+        for x, y in zip(fa, fb):
+            if isinstance(x, bool) or isinstance(y, bool):
+                return None
+            d = abs(float(x) - float(y))
+            if not math.isfinite(d):
+                return None
+            out = max(out, d)
+        return out
+    except Exception:
+        return None
+
+
+def downrep_cell_readings(key, runs):
+    """PREREG-10 readings of one `downrep` cell, recomputed from its streamed records, or None unless
+    the seven runs are present once each, in order, without error, each with an energy, a cycle
+    count, a converged flag, a gradient and a dipole (a partial cell is never read)."""
+    if [r.get("run") for r in runs] != list(DOWNREP_RUNS):
+        return None
+    by = {r["run"]: r for r in runs}
+    for r in runs:
+        if (r.get("error") or not isinstance(r.get("converged"), bool)
+                or not isinstance(r.get("cycles"), int) or isinstance(r.get("cycles"), bool)
+                or not isinstance(r.get("e"), (int, float)) or not math.isfinite(r["e"])
+                or not isinstance(r.get("grad"), list) or not isinstance(r.get("dip"), list)):
+            return None
+    R = by["R"]
+    out = {"key": key, "r_converged": R["converged"], "cycles": {n: by[n]["cycles"] for n in by},
+           "per_k": {}, "c1": {}, "c1_problems": [], "c2": None, "c2_ok": None}
+    for k, sn, mn in DOWNREP_PAIRS:
+        Sk, Mk = by[sn], by[mn]
+        pk = {"dg_MS": _dr_maxabs(Mk["grad"], Sk["grad"]), "dmu_MS": _dr_maxabs(Mk["dip"], Sk["dip"]),
+              "dg_SR": _dr_maxabs(Sk["grad"], R["grad"]), "dmu_SR": _dr_maxabs(Sk["dip"], R["dip"]),
+              "dg_MR": _dr_maxabs(Mk["grad"], R["grad"]), "dmu_MR": _dr_maxabs(Mk["dip"], R["dip"]),
+              "de_MS": abs(Mk["e"] - Sk["e"]), "cycles_S": Sk["cycles"], "cycles_M": Mk["cycles"]}
+        out["per_k"][str(k)] = pk
+        why = []
+        if not (Sk["converged"] is True and Mk["converged"] is True):
+            why.append("not converged")
+        if not pk["de_MS"] <= DR_C1_E_TOL:
+            why.append(f"|dE| {pk['de_MS']:.3e}")
+        if abs(Mk["cycles"] - Sk["cycles"]) > DR_C1_CYCLES:
+            why.append(f"cycles {Sk['cycles']}/{Mk['cycles']}")
+        out["c1"][str(k)] = not why
+        if why:
+            out["c1_problems"].append(f"k={k}: " + ", ".join(why))
+    pks = list(out["per_k"].values())
+    for q in ("dg_MS", "dmu_MS"):
+        vals = [p[q] for p in pks]
+        out[f"{q}_range"] = None if any(v is None for v in vals) else [min(vals), max(vals)]
+    s_runs = [by[sn] for _k, sn, _m in DOWNREP_PAIRS]
+    for q, name in (("grad", "dg_SS"), ("dip", "dmu_SS")):
+        vals = [_dr_maxabs(s_runs[i][q], s_runs[j][q])
+                for i in range(len(s_runs)) for j in range(i + 1, len(s_runs))]
+        out[name] = None if any(v is None for v in vals) else max(vals)
+    devs = {n: [p[src] for p in pks] for n, src in (("g_M", "dg_MR"), ("g_S", "dg_SR"),
+                                                    ("mu_M", "dmu_MR"), ("mu_S", "dmu_SR"))}
+    if R["converged"] is True and all(v is not None for vs in devs.values() for v in vs):
+        c2 = {n: max(vs) for n, vs in devs.items()}
+        c2["g_bound"] = DR_C2_FACTOR * c2["g_S"] + DR_C2_FLOOR_G
+        c2["mu_bound"] = DR_C2_FACTOR * c2["mu_S"] + DR_C2_FLOOR_MU
+        out["c2"] = c2
+        out["c2_ok"] = c2["g_M"] <= c2["g_bound"] and c2["mu_M"] <= c2["mu_bound"]
+    else:
+        out["c2_ok"] = False                  # no converged R, or an unreadable vector: C2 fails
+    return out
+
+
+def downrep_summary(out):
+    """PREREG-10 across the pod's twelve cells: C1 over the 36 pairs, C2 over the 12 cells, C3, the
+    predictions, the quotable M-S figures (range over k) and the falsifier. Recomputed from the
+    streamed records; any cell the pod judged OK while the recomputation fails it (or the reverse)
+    is listed as a disagreement and makes the summary unquotable. A missing cell is a failure."""
+    cells = {c["key"]: c for c in out.get("downrep") or []}
+    want = [f"downrep/{m}/{x}/mtzvpp" for x in DOWNREP_XCS for m in DOWNREP_MOLS]
+    missing = [k for k in want if k not in cells]
+    why = list(out.get("unquotable_why") or [])
+    flags = []
+    if out.get("degraded"):
+        flags.append("DEGRADED")
+    if out.get("contended") is not False:
+        flags.append("CONTENDED" if out.get("contended") else "CONTENTION-UNKNOWN")
+    flags += [f"missing: {k}" for k in missing]
+    n_c1 = sum(1 for c in cells.values() for ok in c["c1"].values() if ok)
+    n_c2 = sum(1 for c in cells.values() if c["c2_ok"] is True)
+    n_c3 = sum(1 for c in cells.values() if c["r_converged"] is True)
+    disagree = []
+    for k, c in cells.items():
+        mine = all(c["c1"].values()) and c["c2_ok"] is True and c["r_converged"] is True
+        if mine != (c.get("status") == "OK"):
+            disagree.append(f"{k}: pod status {c.get('status')}, recomputed C1/C2/C3 "
+                            f"{'pass' if mine else 'fail'}")
+    flags += [f"disagreement: {d}" for d in disagree]
+    s = {"c1_pairs_pass": n_c1, "c1_pairs": len(want) * len(DOWNREP_PAIRS),
+         "c2_cells_pass": n_c2, "c3_cells_pass": n_c3, "cells": len(want), "missing": missing,
+         "disagreements": disagree, "unquotable_why": why, "flags": flags}
+    s["falsifier"] = ("UNDECIDED" if missing else
+                      ("FIRED: the tight-tolerance results stay the only quotable accuracy "
+                       "evidence; the RFC states the C2 failure" if n_c2 < len(want)
+                       else "NOT FIRED"))
+    pred = {"C1 in all 36 pairs": None if missing else ("MET" if n_c1 == PRED_C1_PAIRS
+                                                         else "MODEL-MISS"),
+            "C2 in all 12 cells": None if missing else ("MET" if n_c2 == PRED_C2_CELLS
+                                                         else "MODEL-MISS")}
+    om = cells.get("downrep/omeprazole/b3lyp/mtzvpp")
+    if om is None:
+        pred["omeprazole B3LYP M-S dipole in (1e-4, 3.8e-4] D, every k"] = None
+    else:
+        lo, hi = PRED_OMEPRAZOLE_B3LYP_DMU_MS
+        vals = [p["dmu_MS"] for p in om["per_k"].values()]
+        pred["omeprazole B3LYP M-S dipole in (1e-4, 3.8e-4] D, every k"] = (
+            "MET" if all(v is not None and lo < v <= hi for v in vals) else "MODEL-MISS")
+    for xc in DOWNREP_XCS:
+        sel = [cells.get(f"downrep/{m}/{xc}/mtzvpp") for m in DOWNREP_MOLS]
+        g = [c["dg_SS"] for c in sel if c is not None]
+        mu = [c["dmu_SS"] for c in sel if c is not None]
+        complete = len(g) == len(DOWNREP_MOLS) and None not in g and None not in mu
+        pred[f"{xc} stock scatter grad <= {PRED_STOCK_SCATTER_G[xc]:g}"] = (
+            None if not complete else ("MET" if max(g) <= PRED_STOCK_SCATTER_G[xc]
+                                       else "MODEL-MISS"))
+        pred[f"{xc} stock scatter dipole <= {PRED_STOCK_SCATTER_MU:g}"] = (
+            None if not complete else ("MET" if max(mu) <= PRED_STOCK_SCATTER_MU
+                                       else "MODEL-MISS"))
+    s["predictions"] = pred
+    # The figures the protocol makes quotable on a clean PASS: per functional, the range over every
+    # cell and k of max|g_M - g_S| and max|mu_M - mu_S|; per cell, its own range over k.
+    fig = {}
+    for xc in DOWNREP_XCS:
+        sel = [cells.get(f"downrep/{m}/{xc}/mtzvpp") for m in DOWNREP_MOLS]
+        for q in ("dg_MS", "dmu_MS"):
+            rs = [c[f"{q}_range"] for c in sel if c is not None]
+            fig[f"{xc} {q}"] = (None if len(rs) != len(DOWNREP_MOLS) or None in rs
+                                else [min(r[0] for r in rs), max(r[1] for r in rs)])
+    s["m_minus_s"] = fig
+    s["per_cell_m_minus_s"] = {k: {"dg_MS": c["dg_MS_range"], "dmu_MS": c["dmu_MS_range"]}
+                               for k, c in cells.items()}
+    pod_ok = n_c1 == s["c1_pairs"] and n_c2 == len(want) and n_c3 == len(want)
+    s["quotable"] = not why and not flags and pod_ok
+    if not s["quotable"]:
+        s["label"] = "UNQUOTABLE"
+    return s
+
+
 # PREREG-rfcbench-0 Amendment 3: a pod whose GPU already draws more than this before the first group
 # (sampled idle, after the probe) is CONTENDED. Its speed readings are reported separately and never
 # pooled, and it is re-dispatched once. W1-W3 idled at 57-92 W; W4 drew 576 W.
@@ -322,7 +496,7 @@ def extract(text, run_id, unquotable=False):
     verdicts = {v["key"]: v for v in pod.get("cells") or []}
     requested = pod.get("cells_requested") or []
     cells, missing, fit_table, downstream, bridge, prereg8 = [], [], [], [], [], []
-    defaults = []
+    defaults, downrep = [], []
     for key in requested:
         v = verdicts.get(key, {})
         kind = key.split("/", 1)[0]
@@ -338,6 +512,14 @@ def extract(text, run_id, unquotable=False):
                 continue
             dr.update(status=v.get("status"), fit=v.get("fit"), pod_readings=v.get("readings"))
             defaults.append(dr)
+            continue
+        if kind == "downrep":                # PREREG-rfcbench-10
+            dr = downrep_cell_readings(key, runs.get(key, []))
+            if dr is None:
+                missing.append(key)
+                continue
+            dr.update(status=v.get("status"), fit=v.get("fit"), pod_readings=v.get("readings"))
+            downrep.append(dr)
             continue
         if kind == "downstream":
             downstream.append({"key": key, "status": v.get("status"),
@@ -399,8 +581,13 @@ def extract(text, run_id, unquotable=False):
         for c in defaults:
             c["label"] = "UNQUOTABLE"
             c["readings"] = {k: f"UNQUOTABLE {v}" for k, v in c["readings"].items()}
+        for c in downrep:
+            c["label"] = "UNQUOTABLE"
     if defaults:
         out["defaults"] = defaults
+    if downrep or any(k.startswith("downrep/") for k in requested):
+        out["downrep"] = downrep
+        out["prereg10"] = downrep_summary(out)
     return out
 
 

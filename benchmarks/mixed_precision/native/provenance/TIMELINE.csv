@@ -141,3 +141,10 @@ time_utc,kind,what,ref,detail
 2026-10-10T05:26:13Z,run created,ld2,38027495744,head e1cc2bb5e577; PREREG-9 LD2
 2026-10-10T05:53:06Z,run finished,ld2,38027495744,success
 2026-10-10T05:55:24Z,protocol commit,PREREG-rfcbench-9-library-defaults.md,57844f04aba1,"PREREG-9 RESULT: falsifier not fired; library defaults r2SCAN 1.577, B3LYP 1.636, wB97M-V 3.094 (LD1 38025861073, LD2 38027495744)"
+2026-10-10T14:48:59Z,protocol commit,PREREG-rfcbench-8-geometry-safety.md,15b9a0ff0c76,"docs: redact AI model names from PREREG-8 and DECISION-conv-tol-grad, by dated erratum"
+2026-10-12T04:16:04Z,protocol commit,PREREG-rfcbench-9-library-defaults.md,1f33c96b9e33,PREREG-9 Erratum 1: the status line records that the protocol ran (review finding m7)
+2026-10-12T16:54:46Z,protocol commit,PREREG-rfcbench-10-downstream-triplicate.md,16aa4e3a98d9,"rfcbench PREREG-10: D1's downstream cells in triplicate at the default conv_tol_grad (mode `downrep`, one pod, not yet run)"
+2026-10-12T16:55:39Z,run created,dr1,38280778155,head 16aa4e3a98d9; PREREG-10 DR1
+2026-10-12T17:14:39Z,run finished,dr1,38280778155,success
+2026-10-12T17:16:41Z,protocol commit,PREREG-rfcbench-10-downstream-triplicate.md,2e6c53f1a22a,"PREREG-10 RESULT: PASS; C1 36/36, C2 12/12, C3 12/12 (DR1 38280778155); default-tolerance mixed vs stock now quotable"
+2026-10-12T17:16:50Z,protocol commit,PREREG-rfcbench-10-downstream-triplicate.md,36004fe02169,PREREG-10 RESULT: date is 2026-10-12
