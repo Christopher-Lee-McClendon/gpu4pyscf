@@ -7,7 +7,8 @@ State of play (updated 2026-10-10):
 
 | item | value |
 |---|---|
-| code branch | `chris-lee-mc/gpu4pyscf@mixed-precision-upstream`, head `4d2f3de4c244a6f11debbf44e17d61900c845fc6`, four commits (`920bf64`, `39300f2`, `9755115`, `4d2f3de`) on upstream master `c1a6e371d1a46afc9932c618108a4bc70e895edf` |
+| code branch | `chris-lee-mc/gpu4pyscf@mixed-precision-upstream`, head `4d2f3de4c244a6f11debbf44e17d61900c845fc6`, four commits (`920bf64`, `39300f2`, `9755115`, `4d2f3de`) on upstream master `c1a6e371d1a46afc9932c618108a4bc70e895edf` <!-- UPDATE-AFTER-R5 --> |
+| pending on the code branch (not yet validated; "r5") | `mf.newton()` with a policy set refuses (`NotImplementedError`); `k=True` on a functional without exact exchange refuses (was a silent no-op); `mf.mixed_precision_record` defaults to `None`; with `xc` and `k` both on, K is held at FP64 whenever XC falls back to FP64. The staged texts already describe this behaviour; every place that quotes the head SHA, a test count, a numstat or an r4 result still quotes `4d2f3de` and is marked `<!-- UPDATE-AFTER-R5 -->` (`git grep -n UPDATE-AFTER-R5 -- benchmarks/mixed_precision/rfc`). After r5: update those, add the new run ids and counts to `verify_rfc.py`'s `ALLOWLIST`, re-run it, and remove the markers |
 | evidence package | `chris-lee-mc/gpu4pyscf@mixed-precision-rfc-package-v2`, `benchmarks/mixed_precision/` |
 | last GPU validation of the code branch | g4psrc r4, engine-repo runs `38022477235` (`pro6000-lock`), `38023769024` (`pro6000-pyscf28`) and `38024957471` (`v100-ci`), on master `c1a6e37`, from source for sm_120 and sm_70: PASS (`validation/VALIDATION-g4psrc.md`) |
 | earlier heads, kept as branches | `mixed-precision-upstream-on-eef5f5b` (r1), `mixed-precision-upstream-on-82bc702` (r2), `mixed-precision-upstream-on-c1a6e37` (r3, `ac4c668e`) |
@@ -80,11 +81,20 @@ flake8 --config .flake8 gpu4pyscf
 - [ ] The usage snippet in that docstring uses `gpu4pyscf.dft.RKS` (a factory function in
       `gpu4pyscf/dft/__init__.py` on `c1a6e37`); the tests and `rfc/` use `gpu4pyscf.dft.rks.RKS`.
       Both resolve; no action unless the rebase changes `dft/__init__.py`.
+- [ ] **Engine-repo erratum to file (not done here).** `native/prereg/PREREG-rfcbench-9-library-defaults.md`
+      line 3 still reads "PRE-REGISTERED, not yet run" although its RESULT is appended (from line
+      275). `native/prereg/` is a byte-identical mirror of the engine repository's protocols, so it
+      is **not** edited in this package: correct the status line in the engine repo (as a dated
+      erratum, like PREREG-8 Erratum 1) and re-mirror.
+- [x] `test_nr_coach` under libxc 0.9.0: the "unrelated to this change" note was dropped from
+      `RFC_ISSUE.md` and `PR_BODY.md`, since upstream #960 (master `e1020c3`) now skips that test
+      on older pyscf / libxc; `validation/VALIDATION-g4psrc.md` keeps r4's observation as a record
+      with one line saying so.
 
 ## 5. Final verification before posting anything
 
 - [ ] `python3 benchmarks/mixed_precision/native/verify_native.py` ends with
-      `939/947 checks reproduced; 8 known discrepancies (listed above, not adjusted); 0 failures`
+      `943/951 checks reproduced; 8 known discrepancies (listed above, not adjusted); 0 failures`
       (or a higher reproduced count if checks were added) and exits 0.
 - [ ] `python3 benchmarks/mixed_precision/verify_aggregates.py` ends with
       `419 checks: 418 ok, 1 known DISCREPANCY (reported, not adjusted), 0 FAIL`.
@@ -121,6 +131,19 @@ flake8 --config .flake8 gpu4pyscf
 - [ ] The package branch is pushed and the links in `RFC_ISSUE.md` resolve (they point at the
       `mixed-precision-upstream` tree and at `benchmarks/mixed_precision/` on
       `mixed-precision-rfc-package-v2`).
+- [ ] **Public-branch hygiene (described, not done).** The branch the issue links must not carry
+      the planning material: `rfc/SUBMISSION_PLAN.md` (maintainer-behaviour analysis and merge
+      estimates), this checklist (the forbidden-string list) and the superseded
+      `PR_DESCRIPTION.md`; `rfc/RFC_ISSUE.md`, `rfc/PR_BODY.md` and `rfc/verify_rfc.py` are the
+      staged texts and their checker and may stay or go with the rest. Either (a) link a clean
+      evidence-only branch: `git checkout -b mixed-precision-rfc-evidence
+      mixed-precision-rfc-package-v2 && git rm -r benchmarks/mixed_precision/rfc
+      benchmarks/mixed_precision/PR_DESCRIPTION.md`, commit, push, and point both links in
+      `RFC_ISSUE.md` at that branch; or (b) move `rfc/` off `mixed-precision-rfc-package-v2` to a
+      private branch before posting. In either case `verify_rfc.py` must still be run from a tree
+      that has both `rfc/` and `native/`, so run §5 before the split, and re-check that the package
+      `README.md` (which the issue cites for the API, the refusals and the VV10/AO-cache details)
+      is on the linked branch.
 
 ## 6. Post the issue
 
@@ -128,9 +151,10 @@ flake8 --config .flake8 gpu4pyscf
       comment at the top). Title: "RFC: opt-in mixed-precision SCF for density-fitted RKS on
       FP64-limited GPUs". Upstream has no issue template.
 - [ ] Attach nothing to the issue beyond the two links; the package is the attachment.
-- [ ] **Wait for maintainer feedback.** The six questions at the end of the issue decide the
-      shape of the PR (policy object vs flag, device guard, whether VV10 and the AO cache go in
-      the first PR, where the convergence check lives, the default thresholds, the record).
+- [ ] **Wait for maintainer feedback.** The six questions (0–5) at the end of the issue decide the
+      shape of the PR: whether it belongs in core at all or only as two seams (Q0, SUBMISSION_PLAN
+      §5 Fallback A), policy object vs flag, device guard, whether VV10 and the AO cache go in the
+      first PR, where the convergence check lives, and the default thresholds and the record.
 
 ## 7. Only then: the PR
 

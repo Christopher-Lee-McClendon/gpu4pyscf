@@ -5,7 +5,9 @@ Stdlib only. Two tiers, both fail closed:
 
   BOUND     headline figures, each tied by name to one check of native/verify_native.py. The
             figure must appear verbatim in the file, and the verifier's recomputed value (from
-            data/, not from CLAIMS.md) must round to it at the figure's printed precision.
+            data/, not from CLAIMS.md; the unformatted value where the verifier exposes it, so a
+            two-decimal figure in the issue is rounded from the data, not from a printed
+            three-decimal string) must round to it at the figure's printed precision.
   COVERED   every other numeric token in the two files must equal, at its printed precision,
             a number printed in native/CLAIMS.md, a value recomputed by verify_native.py, or an
             entry of ALLOWLIST (code constants, test counts and the GPU validation run, each with
@@ -27,19 +29,43 @@ FILES = ["RFC_ISSUE.md", "PR_BODY.md"]
 # --- tier A: headline figures bound to verify_native.py checks (check name -> figure as printed)
 BOUND = {
     "RFC_ISSUE.md": [
-        ("L12 r2scan ladder geomean (24)", "1.657"),
-        ("L12 b3lyp ladder geomean (24)", "1.783"),
-        ("wB97M-V ladder geomean (24, healthy pods)", "2.914"),
-        ("XL r2SCAN geomean (6)", "1.931"),
-        ("XL r2SCAN geomean without ritonavir (5)", "1.802"),
-        ("XL B3LYP geomean (6)", "1.338"),
-        ("L40S r2scan mixed/stock", "1.729"),
-        ("L40S b3lyp mixed/stock", "1.524"),
-        ("L40S wb97m-v mixed/stock", "2.994"),
-        ("H100 r2scan mixed/stock", "1.320"),
-        ("H100 b3lyp mixed/stock", "0.905"),
-        ("H100 wb97m-v mixed/stock", "0.577"),
-        ("H100 r2scan mixed/cache (precision effect)", "1.084"),
+        # the issue quotes speed ratios to two decimals (the package keeps three); same() rounds the
+        # verifier's recomputed value to the printed precision, so a 2-decimal figure binds directly
+        ("LD trio geomean r2scan mixed-default/stock-default", "1.58"),
+        ("LD trio geomean b3lyp mixed-default/stock-default", "1.64"),
+        ("LD trio geomean wb97m-v mixed-default/stock-default", "3.09"),
+        ("L12 r2scan ladder geomean (24)", "1.66"),
+        ("L12 b3lyp ladder geomean (24)", "1.78"),
+        ("wB97M-V ladder geomean (24, healthy pods)", "2.91"),
+        ("L12 r2scan lowest cell", "1.52"),
+        ("L12 r2scan highest cell", "1.87"),
+        ("L12 b3lyp lowest cell", "1.58"),
+        ("L12 b3lyp highest cell", "1.99"),
+        ("wB97M-V lowest cell", "2.59"),
+        ("wB97M-V highest cell", "3.25"),
+        # the two excluded wB97M-V pods (CLAIMS C1) and their re-runs
+        ("C0 wb97m-v mixed/stock (CONTENTION-UNKNOWN)", "2.06"),
+        ("W4 (CONTENDED) diphenhydramine", "1.92"),
+        ("W4 (CONTENDED) propranolol", "2.13"),
+        ("C0w wB97M-V mixed/stock", "2.96"),
+        ("W4r diphenhydramine", "2.87"),
+        ("W4r ketoprofen", "3.05"),
+        ("LD trio geomean r2scan mixed-nocache-campaign/stock-campaign", "1.63"),
+        ("LD trio geomean b3lyp mixed-nocache-campaign/stock-campaign", "1.95"),
+        ("LD trio geomean wb97m-v mixed-nocache-campaign/stock-campaign", "2.88"),
+        ("XL r2SCAN geomean (6)", "1.93"),
+        ("XL r2SCAN geomean without ritonavir (5)", "1.80"),
+        ("XL B3LYP geomean (6)", "1.34"),
+        ("L40S r2scan mixed/stock", "1.73"),
+        ("L40S b3lyp mixed/stock", "1.52"),
+        ("L40S wb97m-v mixed/stock", "2.99"),
+        ("H100 r2scan mixed/stock", "1.32"),
+        ("X3r H100 trio r2scan mixed/stock", "1.40"),
+        ("H100 b3lyp mixed/stock", "0.91"),
+        ("X3r H100 trio b3lyp mixed/stock", "1.02"),
+        ("H100 wb97m-v mixed/stock", "0.58"),
+        ("X3r H100 trio wb97m-v mixed/stock", "0.61"),
+        ("H100 r2scan mixed/cache (precision effect)", "1.08"),
         ("r2scan: lowest max |g_M - g_S| (Ha/Bohr)", "3.8e-9"),
         ("r2scan: highest max |g_M - g_S| (Ha/Bohr)", "5.3e-8"),
         ("B3LYP but omeprazole: lowest max |g_M - g_S|", "2.1e-8"),
@@ -53,46 +79,18 @@ BOUND = {
         ("wb97m-v: lowest max |mu_M - mu_S| (D)", "1.2e-12"),
         ("wb97m-v: highest max |mu_M - mu_S| (D)", "5.9e-12"),
         ("omeprazole B3LYP: max |g_M - g_S|", "4.4e-6"),
+        ("omeprazole B3LYP: max |mu_M - mu_S| (D)", "1.9e-4"),
         ("omeprazole B3LYP: S-R over M-R", "3.4"),
         ("lowest max |g_M - g_R| over 18 cells", "6.6e-7"),
         ("highest max |g_S - g_R| over 18 cells", "3.4e-6"),
-        ("r2scan: lowest max |g_Mt - g_St|", "1.5e-9"),
-        ("r2scan: highest max |g_Mt - g_St|", "2.3e-8"),
-        ("b3lyp: lowest max |g_Mt - g_St|", "6.8e-9"),
-        ("b3lyp: highest max |g_Mt - g_St|", "2.2e-7"),
-        ("wb97m-v: lowest max |g_Mt - g_St|", "1.1e-8"),
-        ("wb97m-v: highest max |g_Mt - g_St|", "2.1e-8"),
         ("G1 paracetamol/r2scan: warm-step SCF wall, S / M0", "1.41"),
-        ("G1 paracetamol/b3lyp: warm-step SCF wall, S / M0", "1.42"),
         ("G1 celecoxib/r2scan: warm-step SCF wall, S / M0", "1.44"),
-        ("G1 paracetamol/r2scan: whole optimisation (SCF + gradient), S / MW", "1.28"),
         ("G1 paracetamol/b3lyp: whole optimisation (SCF + gradient), S / MW", "1.19"),
         ("G1 celecoxib/r2scan: whole optimisation (SCF + gradient), S / MW", "1.30"),
+        # the plain arm, where valid (CLAIMS C6 Scope); 1.165 and 1.270 at three decimals
+        ("G1 paracetamol/b3lyp: whole optimisation (SCF + gradient), S / M0 (the plain arm)", "1.16"),
+        ("G1 celecoxib/r2scan: whole optimisation (SCF + gradient), S / M0 (the plain arm)", "1.27"),
         ("G1 paracetamol/r2scan: endpoint RMSD M0 vs S, aligned (A)", "9.9e-6"),
-        ("G1 paracetamol/b3lyp: endpoint RMSD M0 vs S, aligned (A)", "1.5e-6"),
-        ("G1 celecoxib/r2scan: endpoint RMSD M0 vs S, aligned (A)", "4.0e-7"),
-        ("G1 paracetamol/r2scan: M0 endpoint stock grms (Ha/Bohr)", "7.2e-5"),
-        ("G1 celecoxib/r2scan: M0 endpoint stock gmax (Ha/Bohr)", "2.3e-4"),
-        ("G1: largest |E_stock(mixed endpoint) - E_S(final)| (Ha)", "3.2e-9"),
-        # PREREG-9, library defaults (CLAIMS C7)
-        ("LD trio geomean r2scan mixed-default/stock-default", "1.577"),
-        ("LD trio geomean b3lyp mixed-default/stock-default", "1.636"),
-        ("LD trio geomean wb97m-v mixed-default/stock-default", "3.094"),
-        ("LD trio geomean r2scan mixed-nocache-campaign/stock-campaign", "1.627"),
-        ("LD trio geomean b3lyp mixed-nocache-campaign/stock-campaign", "1.954"),
-        ("LD trio geomean wb97m-v mixed-nocache-campaign/stock-campaign", "2.884"),
-        ("LD trio geomean r2scan mixed-campaign/stock-campaign", "1.678"),
-        ("LD trio geomean b3lyp mixed-campaign/stock-campaign", "1.968"),
-        ("LD trio geomean wb97m-v mixed-campaign/stock-campaign", "2.944"),
-        ("PREREG-9 anchor: banked C1 trio r2scan, recomputed from L12", "1.638"),
-        ("PREREG-9 anchor: banked C1 trio b3lyp, recomputed from L12", "1.860"),
-        ("PREREG-9 anchor: banked C1 trio wb97m-v, recomputed from W1/W4r", "2.803"),
-        ("anchor delta b3lyp: LD mixed-campaign/stock-campaign trio minus the banked 1.860", "0.108"),
-        ("anchor delta wb97m-v: LD mixed-campaign/stock-campaign trio minus the banked 2.803", "0.141"),
-        ("LD trio r2scan: stock-default/stock-campaign (the grid, on stock)", "1.356"),
-        ("LD trio b3lyp: stock-default/stock-campaign (the grid, on stock)", "1.278"),
-        ("LD trio wb97m-v: stock-default/stock-campaign (the grid, on stock)", "1.035"),
-        ("LD trio b3lyp: mixed-campaign/mixed-nocache-campaign (the cache)", "1.007"),
     ],
     "PR_BODY.md": [
         ("LD trio geomean r2scan mixed-default/stock-default", "1.577"),
@@ -143,6 +141,19 @@ BOUND = {
         ("G1 paracetamol/b3lyp: whole optimisation (SCF + gradient), S / MW", "1.19"),
         ("G1 celecoxib/r2scan: whole optimisation (SCF + gradient), S / MW", "1.30"),
         ("G1: largest |E_stock(mixed endpoint) - E_S(final)| (Ha)", "3.2e-9"),
+        ("G1 paracetamol/b3lyp: whole optimisation (SCF + gradient), S / M0 (the plain arm)", "1.165"),
+        ("G1 celecoxib/r2scan: whole optimisation (SCF + gradient), S / M0 (the plain arm)", "1.270"),
+        ("r2scan: highest max |mu_M - mu_S| (D)", "2.4e-6"),
+        ("wb97m-v: highest max |mu_M - mu_S| (D)", "5.9e-12"),
+        ("omeprazole B3LYP: max |g_M - g_S|", "4.4e-6"),
+        ("omeprazole B3LYP: max |mu_M - mu_S| (D)", "1.9e-4"),
+        ("omeprazole B3LYP: S-R over M-R", "3.4"),
+        ("C0 wb97m-v mixed/stock (CONTENTION-UNKNOWN)", "2.059"),
+        ("W4 (CONTENDED) diphenhydramine", "1.92"),
+        ("W4 (CONTENDED) propranolol", "2.13"),
+        ("C0w wB97M-V mixed/stock", "2.963"),
+        ("W4r diphenhydramine", "2.87"),
+        ("W4r ketoprofen", "3.05"),
         ("CC1 stock: G4-MPS", "1.52"),
         ("CC1 mixed: G4-MPS", "1.75"),
         ("CS1 P1_stock_first: r2scan cold extra (s)", "134.0"),
@@ -197,6 +208,7 @@ ALLOWLIST = {
     "2.7e-12": "g4psrc r4 pro6000-pyscf28: trio |dE| <= 2.7e-12 Ha (g4psrc_r4_pro6000-pyscf28.json)",
     "133": "g4psrc r4 v100-ci: new_tests wall_s 132.8 (g4psrc_r4_v100-ci.json)",
     "18.3": "g4psrc r4 v100-ci: slowest test 18.29 s, test_vv10_paracetamol (durations in the JSON)",
+    "17.5": "g4psrc r4 v100-ci: second slowest test 17.5 s, test_kernels_against_stock_vv10nlc (VALIDATION-g4psrc.md)",
     "2.8": "upstream unittest.yml multi-gpu job: pip install pyscf==2.8; g4psrc r4 pro6000-pyscf28 ran 2.8.0",
     "0.9": "upstream unittest.yml single-gpu job: gpu4pyscf-libxc-cuda12x 0.9.0; g4psrc r4 v100-ci ran it",
     "1.17": "upstream requirements / multi-gpu job: scipy 1.17, not tested (r4 Amendment 1)",
@@ -318,7 +330,7 @@ def main():
                 print(f"FAIL bound  {printed!r} ({check}) is not in {name}: stale binding")
                 failures += 1
                 continue
-            if not same(printed, got):
+            if not same(printed, getattr(vn, "raw", {}).get(check, got)):
                 print(f"FAIL bound  {name}: {printed} vs verifier {got} ({claim} {check})")
                 failures += 1
                 continue

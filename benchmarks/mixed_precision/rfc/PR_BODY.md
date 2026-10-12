@@ -19,29 +19,32 @@ cannot report convergence until two consecutive iterations were built without FP
 arithmetic. Functional evaluation, grid weights, J, every accumulator and every energy stay FP64.
 Gradients and Hessians are untouched.
 
-Target: GPUs whose FP64 throughput is a small fraction of FP32. Measured with this code against
-stock GPU4PySCF on an RTX PRO 6000 Blackwell Workstation, 24 drug-like molecules (20–44 atoms),
-def2-mTZVPP, three warm pairs per cell, at the settings listed under Evidence (not the library
-defaults): r2SCAN 1.657, B3LYP 1.783, wB97M-V 2.914 (mixed/stock geomeans). At the library
-defaults (the default pruned grid, no AO cache, the policies exactly as above), on three of those
-molecules: r2SCAN 1.577, B3LYP 1.636, wB97M-V 3.094. On the H100 and A100 tested the FP32 switch
-is slower than stock (wB97M-V 0.577–0.615 on the H100), and the code does not detect that device
-class; see Limitations.
+Target: GPUs whose FP64 throughput is a small fraction of FP32. Speed was measured with an earlier
+head of this branch (fork tree `63af0568`: the same two mixed-precision modules up to a docstring
+and one `block_loop` keyword, with the hooks since re-authored on master) overlaid on the v1.8.1
+wheel; the master-based head was re-validated for correctness, not speed (Test plan). Every ratio
+below is **stock wall / mixed wall** (> 1 means mixed is faster). Against stock GPU4PySCF on an RTX
+PRO 6000 Blackwell Workstation, 24 drug-like molecules (20–44 atoms), def2-mTZVPP, three warm pairs
+per cell, at the settings listed under Evidence (not the library defaults): r2SCAN 1.657, B3LYP
+1.783, wB97M-V 2.914 (geomeans). At the library defaults (the default pruned grid, no AO cache, the
+policies exactly as above), on three of those molecules: r2SCAN 1.577, B3LYP 1.636, wB97M-V 3.094.
+On the H100 and A100 tested the FP32 switch is slower than stock (wB97M-V 0.577–0.615 on the H100),
+and the code does not detect that device class; see Limitations.
 
 ## Reviewer's guide
 
 Read in this order. Diff: +2931 / −39 over nine files, of which +2070 / −39 is code outside the
-tests and README.
+tests and README. <!-- UPDATE-AFTER-R5: the diff totals and every per-file numstat below -->
 
 | order | file | what it does |
 |---|---|---|
 | 1 | `gpu4pyscf/dft/mixed_precision.py` (new, +963) | `MixedPrecision` policy; `PhaseController` (one-way switch on an energy trace); `check_supported` (every refusal); `_SCFState` (per-iteration protocol `begin_call` / `end_call`, the clean-streak that defines the FP64 tail, `k_scope`, the record); `begin` / `end` (lifecycle, VV10 certificate); the AO cache (`_build_ao_cache`, tiers decided from predicted size); `nr_rks_fp32` (FP32 rho/vxc, FP64 promotion per block) and `nr_rks_fp64_cached` (the statements of `numint.nr_rks` / `_nr_rks_task` on cached FP64 blocks, bitwise stock) |
 | 2 | `gpu4pyscf/scf/hf.py` (+41 / −12) | `scf()` opens the state (`mixed_precision.begin`) before `_kernel` and closes it after (`end`, which certifies VV10; `end(failed=True)` on an exception). `_kernel`: when the convergence tests are met without an FP64 tail, forces the switch and continues; raises if no `get_veff` ever reported to the policy (an unsupported `get_veff` override) |
 | 3 | `gpu4pyscf/df/df_jk.py` (+77 / −3) | `_DFHF.get_veff` (RHF branch): `begin_call`, FP32 or cached-FP64 XC, `k_scope` around `get_jk`, `vv10_kernel=` to `nr_nlc_vxc`, `end_call`. `get_jk`: the FP32 K path (`_k_block_fp32`: FP32 half-transform in the FP64 `rhok` buffer, `cderi` cast in aux-index chunks, FP64 accumulator), taken only when `dfobj._k_precision == 'fp32'` for the plain `omega=0`, mode-0 case |
-| 4 | `gpu4pyscf/dft/rks.py` (+45 / −4) | `get_veff` (non-DF): the same protocol; on the first FP64 K iteration after FP32 K it drops `vj_last` so J is rebuilt from the full density (a guard: FP32 K is refused without DF). `KohnShamDFT`: `mixed_precision = None` class attribute and two `_keys` entries |
+| 4 | `gpu4pyscf/dft/rks.py` (+45 / −4) | `get_veff` (non-DF): the same protocol; on the first FP64 K iteration after FP32 K it drops `vj_last` so J is rebuilt from the full density (a guard: FP32 K is refused without DF). `KohnShamDFT`: `mixed_precision = None` and `mixed_precision_record = None` class attributes and two `_keys` entries |
 | 5 | `gpu4pyscf/dft/numint.py` (+29 / −20) | `_vv10nlc(..., uwe_kernel=None)` and `nr_nlc_vxc(..., vv10_kernel=None)`: with `None` the stock statements run unchanged |
 | 6 | `gpu4pyscf/dft/vv10_mixed.py` (new, +915) | FP32 and df64 VV10 U/W/E kernels (NVRTC via `cupy.RawModule`, no fast-math), bound once per device after a forced probe; `uwe_stock`; `certify` |
-| 7 | `gpu4pyscf/dft/tests/test_mixed_precision.py` (32 tests), `test_mixed_precision_vv10.py` (18 tests) | below |
+| 7 | `gpu4pyscf/dft/tests/test_mixed_precision.py` (32 tests), `test_mixed_precision_vv10.py` (18 tests) <!-- UPDATE-AFTER-R5 --> | below |
 | 8 | `README.md` | one line under experimental features |
 
 **Default-off guarantee.** With `mf.mixed_precision` unset, `scf()` finds no policy and runs the
@@ -59,16 +62,19 @@ bitwise equal to `nr_rks` (`test_fp64_cached_is_bitwise_stock_nr_rks`, with a ne
 - **Opt-in per object**, nothing enabled by GPU model; precedent: explicit reduced precision in
   RI-MP2 and TDDFT-RIS.
 - **Refusals are loud** (`NotImplementedError` at `kernel()`): UKS/ROKS/GKS and spin ≠ 0;
-  multi-GPU; with `xc`/`k`, range-separated and NLC functionals; `k` without density fitting; with
-  `vv10`, no NLC term or more than one VV10 term, or a `NumInt` whose `nr_nlc_vxc` lacks
-  `vv10_kernel`. A VV10 kernel that does not build or fails its probe raises `RuntimeError`.
+  multi-GPU; the second-order solver (`mf.newton()` with a policy set: it bypasses `scf()`, where
+  the policy is opened); with `xc`/`k`, range-separated and NLC functionals; `k` without density
+  fitting, or on a functional without exact exchange (there is no K to treat; previously a silent
+  no-op); with `vv10`, no NLC term or more than one VV10 term, or a `NumInt` whose `nr_nlc_vxc`
+  lacks `vv10_kernel`. A VV10 kernel that does not build or fails its probe raises `RuntimeError`.
 - **Convergence contract** is structural, in `_kernel`, not a benchmark gate. DF-RKS rebuilds
   XC/J/K from the full density each iteration, so no FP32 contribution survives the switch.
   Without density fitting only XC can be FP32 (`k=True` is refused), and XC is rebuilt from the
   full density every iteration; the full-J-rebuild hook in `rks.get_veff` is a guard for the first
   FP64 K iteration and is not reached in a supported configuration.
-- **With `xc` and `k` both on, K returns to FP64 no later than XC**; a k-only policy runs FP32 K
-  under FP64 XC (`test_k_only_paracetamol`).
+- **With `xc` and `k` both on, K returns to FP64 no later than XC, and is held at FP64 whenever XC
+  falls back to FP64** (an FP32 AO copy that does not fit): K is never FP32 on an iteration where
+  XC is FP64. A k-only policy runs FP32 K under FP64 XC (`test_k_only_paracetamol`).
 - **Switch triggers** are empirical controller settings (`xc_switch_tol=1e-3`,
   `k_switch_tol=1e-3`, `vv10_switch_tol=1e-5`, `stall=2`, `call_cap=30`), not error bounds. The
   stall and cap exist because a convergence tolerance below the FP32 noise floor may never be met
@@ -79,8 +85,9 @@ bitwise equal to `nr_rks` (`test_fp64_cached_is_bitwise_stock_nr_rks`, with a ne
   partially.
 - **Backend-agnostic.** The K path calls `cupy_helper.contract`, so it inherits cuTENSOR when
   that is active.
-- **Transparency.** `mf.mixed_precision_record` lists, per iteration, the precision of XC, K and
-  VV10, the reason for each switch, the cache tier and the VV10 certificate.
+- **Transparency.** `mf.mixed_precision_record` (`None` until the first `kernel()`) lists, per
+  iteration, the precision of XC, K and VV10, the reason for each switch, the cache tier and the
+  VV10 certificate.
 
 ## Evidence
 
@@ -100,25 +107,36 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
   past the ±0.10 replication band, both faster (REPLICATION-FLAG; the figures below are not
   revised).
 - **Speed, campaign configuration** (CLAIMS C1, C2): r2SCAN 1.657 (per-cell 1.523–1.871), B3LYP
-  1.783 (1.584–1.994), wB97M-V 2.914 (2.593–3.250, five pods on three cards). Six molecules of
-  63–98 atoms: r2SCAN 1.931, B3LYP 1.338. B3LYP's gain falls with size because the J/K stage,
-  about half the stock SCF at 475–559 Da, gains only 5–7 % while XC gains 2–3×.
+  1.783 (1.584–1.994), wB97M-V 2.914 (2.593–3.250, five pods on three cards). Two further wB97M-V
+  pods read about 30 % lower (2.059 on the trio; 1.92–2.13 on four molecules) and are excluded
+  under a contention rule (idle draw above 200 W, PREREG-0 Amendment 3) written after they had
+  been seen; their re-runs on quiet cards read 2.963 and 2.87–3.05, so the headline stands, but on
+  shared GPUs expect the lower readings. Six molecules of 63–98 atoms: r2SCAN 1.931, B3LYP 1.338.
+  B3LYP's gain falls with size because the J/K stage, about half the stock SCF at 475–559 Da, gains
+  only 5–7 % while XC gains 2–3×.
 - **FP64-strong cards** (CLAIMS C3): L40S pays (1.729 / 1.524 / 2.994 for r2SCAN / B3LYP /
   wB97M-V). H100: 1.320–1.398 / 0.905–1.021 / 0.577–0.615; the r2SCAN gain there is almost all
   the FP64 AO cache (FP32 switch alone 1.084). A100: 11 of 12 clean cells neutral or slower.
-- **Accuracy** (CLAIMS C4; 18 cells, mixed vs stock from the same guess): gradients within
-  3.8e-9 – 5.3e-8 (r2SCAN), 2.1e-8 – 2.7e-7 (B3LYP), 1.2e-8 – 3.2e-8 (wB97M-V) Ha/Bohr; dipoles
-  within 9.3e-6 D; every \|ΔE\| ≤ 1.6e-10 Ha; cycles equal in 17 of 18 cells. Against a tight
-  reference both arms carry the same 6.6e-7 – 3.4e-6 Ha/Bohr residual, set by the default
-  `conv_tol_grad`; at `conv_tol_grad = 3e-6` mixed tracks stock to 1.5e-9 – 2.3e-8 / 6.8e-9 –
-  2.2e-7 / 1.1e-8 – 2.1e-8 Ha/Bohr with identical cycle counts.
-- **Geometry optimisation** (CLAIMS C6; three geomeTRIC runs, stock gradients): identical step
-  counts (23, 26, 16), endpoints within 9.9e-6 Å of stock, warm-step SCF 1.41–1.44 and whole
-  optimisation 1.19–1.30 faster; every endpoint passes a stock certificate (\|ΔE\| ≤ 3.2e-9 Ha).
+- **Accuracy** (CLAIMS C4; 18 cells, mixed M vs stock S from the same guess): gradients within
+  3.8e-9 – 5.3e-8 (r2SCAN), 2.1e-8 – 2.7e-7 (B3LYP, 5 of 6 cells), 1.2e-8 – 3.2e-8 (wB97M-V)
+  Ha/Bohr; dipoles within 2.4e-6 / 9.3e-6 / 5.9e-12 D on the same cells. The exception is
+  omeprazole B3LYP: one extra cycle, 4.4e-6 Ha/Bohr and 1.9e-4 D from S, landing 3.4× closer to
+  the tight stock reference R (`conv_tol` 1e-11) than stock did. Against R every \|ΔE\| is
+  ≤ 1.6e-10 Ha, cycles are equal in 17 of 18 cells, and both arms carry the same 6.6e-7 – 3.4e-6
+  Ha/Bohr residual, set by the default `conv_tol_grad`; at `conv_tol_grad = 3e-6` mixed tracks
+  stock to 1.5e-9 – 2.3e-8 / 6.8e-9 – 2.2e-7 / 1.1e-8 – 2.1e-8 Ha/Bohr with identical cycle counts.
+- **Geometry optimisation** (CLAIMS C6; three geomeTRIC runs, stock gradients, one run per arm):
+  identical step counts (23, 26, 16), endpoints within 9.9e-6 Å of stock, warm-step SCF 1.41–1.44
+  and whole optimisation 1.19–1.30 faster; every endpoint passes a stock certificate (\|ΔE\| ≤
+  3.2e-9 Ha). The whole-optimisation ratios are from the arm that ran a warm-start rule (a fork
+  option, not proposed; it never fired, so that arm's steps and cycles equal the plain arm's)
+  because the plain arm's first SCF paid the driver JIT in one cell; where the plain arm is valid
+  it reads 1.165 (paracetamol B3LYP) and 1.270 (celecoxib r2SCAN).
 
 ## Test plan
 
 - **New tests, 50** (`dft/tests/test_mixed_precision.py`, 32; `test_mixed_precision_vv10.py`, 18):
+  <!-- UPDATE-AFTER-R5: test counts; add the newton() and non-hybrid k refusals and the record default -->
   the default is `None` and an all-off policy is stock; enabled vs stock at r2SCAN, PBE, B3LYP,
   K-only, and XC without DF (\|ΔE\| ≤ 1e-8 Ha, cycles ±1, an FP64 tail, FP32 really used); against
   CPU PySCF; the convergence guard with every other trigger disabled (a forced switch); each
@@ -130,6 +148,7 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
   and the all-off policy.
 - **GPU validation of this branch (`4d2f3de`) on master `c1a6e37`** (`g4psrc r4`, three profiles;
   gpu4pyscf built from source each time, the released wheel removed, each tree importing itself):
+  <!-- UPDATE-AFTER-R5: branch SHA, run ids, test counts and |dE| figures of the three profiles -->
   - **`pro6000-lock`** (engine-repo run `38022477235`; sm_120, one RTX PRO 6000 Blackwell, the
     validation lock's pins): upstream `df/tests/test_df_rks.py`, `df/tests/test_df_jk.py`,
     `dft/tests/test_rks.py`, `scf/tests/test_scf.py` give **44 passed, 1 skipped on master, and
@@ -156,10 +175,12 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
 - **V100 job.** sm_70 needs nothing special: the VV10 kernels are NVRTC `cupy.RawModule`s with
   `--std=c++14` and no `__CUDA_ARCH__` branching (intrinsics `__fadd_rn`, `__fsub_rn`,
   `__fmul_rn`, `__syncthreads`, `__longlong_as_double`). On one V100 the 50 tests take 133 s
-  serially, the slowest 18.3 s (`test_vv10_paracetamol`); the rest are under 18 s each.
-- **Pins.** Passes under pyscf 2.8 and under libxc 0.9.0 (above). With libxc 0.9.0, upstream's own
-  `test_rks.py::test_nr_coach` fails on master and on this branch alike (`COACH` is not in that
-  wheel); it is unrelated to this change. scipy 1.17 was not tested.
+  serially, the slowest 18.3 s (`test_vv10_paracetamol`) and 17.5 s
+  (`test_kernels_against_stock_vv10nlc`), both VV10; the rest are under 12 s each. The XC/K tests
+  all run paracetamol def2-mTZVPP on an unpruned level-3 grid with `conv_tol = 1e-10`; only the
+  tests that assert the FP32-phase length need that, and the others could move to the default
+  pruned grid. We would also trim the two VV10 tests if `--durations` flags them. <!-- UPDATE-AFTER-R5 -->
+- **Pins.** Passes under pyscf 2.8 and under libxc 0.9.0 (above). scipy 1.17 was not tested.
 
 ## Limitations
 
@@ -168,14 +189,11 @@ from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune 
 - **FP64-strong GPUs.** The FP32 switch is slower on the H100 and A100 tested, and nothing in the
   code warns or refuses there. Only two FP64:FP32 throughput levels were measured, so no threshold
   is established. Open question: a device guard by compute capability, or documentation only?
-- **At the library defaults** (CLAIMS C7, three molecules, one RTX PRO 6000): every reading PAYS
-  (≥ 1.15 by the campaign's rule): r2SCAN 1.577, B3LYP 1.636, wB97M-V 3.094 trio geomeans. The
-  default grid has about 0.63 of the unpruned grid's points and stock is 1.356 / 1.278 / 1.035
-  faster on it; without the cache on the unpruned grid the mode reads 1.627 / 1.954 / 2.884. One
+- **At the library defaults** (CLAIMS C7; the figures under Evidence) every reading on the trio is
+  above 1.15, the campaign's threshold for a gain worth reporting; the default grid has about 0.63
+  of the unpruned grid's points and stock itself is 1.356 / 1.278 / 1.035 faster on it. One
   pre-registered prediction missed: B3LYP without the cache, 1.954 against 1.65–1.90, the cache
-  adding only 1.007 for B3LYP. The same pods read the campaign configuration +0.108 (B3LYP) and
-  +0.141 (wB97M-V) above the banked trio, past the ±0.10 replication band, both faster
-  (REPLICATION-FLAG).
+  adding only 1.007 for B3LYP.
 - **Cold start.** On a fresh Blackwell machine the first SCF took 64–168 s. It is the CUDA
   driver's JIT cache, paid once per machine; stock pays it too (134.0 s when it runs first). It is
   not the mode's cost.
