@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Check every number in rfc/RFC_ISSUE.md and rfc/PR_BODY.md against the evidence package.
+"""Check every number in rfc/RFC_ISSUE.md, rfc/ISSUE_DRAFT.md and rfc/PR_BODY.md against the evidence
+package. ISSUE_DRAFT.md is the posting-ready text; RFC_ISSUE.md is its reviewed source, so the draft is
+bound to the subset of the source's headline figures that it still prints.
 
 Stdlib only. Two tiers, both fail closed:
 
@@ -24,7 +26,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.dirname(HERE)
 NATIVE = os.path.join(PKG, "native")
-FILES = ["RFC_ISSUE.md", "PR_BODY.md"]
+FILES = ["RFC_ISSUE.md", "ISSUE_DRAFT.md", "PR_BODY.md"]
 
 # --- tier A: headline figures bound to verify_native.py checks (check name -> figure as printed)
 BOUND = {
@@ -159,6 +161,26 @@ BOUND = {
         ("CS1 P1_stock_first: r2scan cold extra (s)", "134.0"),
     ],
 }
+
+# ISSUE_DRAFT.md prints every headline figure of RFC_ISSUE.md except these: it folds the per-functional
+# accuracy table into one gradient range (lowest r2SCAN to highest B3LYP-but-omeprazole) and one dipole
+# ceiling (highest B3LYP-but-omeprazole), so the inner endpoints are not printed there. Deriving the list
+# from RFC_ISSUE.md's keeps the draft bound to the source: a figure revised in the source becomes a stale
+# binding in the draft until the draft is revised too.
+_NOT_IN_DRAFT = {
+    "r2scan: highest max |g_M - g_S| (Ha/Bohr)",
+    "B3LYP but omeprazole: lowest max |g_M - g_S|",
+    "wb97m-v: lowest max |g_M - g_S| (Ha/Bohr)",
+    "wb97m-v: highest max |g_M - g_S| (Ha/Bohr)",
+    "r2scan: lowest max |mu_M - mu_S| (D)",
+    "r2scan: highest max |mu_M - mu_S| (D)",
+    "B3LYP but omeprazole: lowest max |mu_M - mu_S| (D)",
+    "wb97m-v: lowest max |mu_M - mu_S| (D)",
+    "wb97m-v: highest max |mu_M - mu_S| (D)",
+}
+BOUND["ISSUE_DRAFT.md"] = [b for b in BOUND["RFC_ISSUE.md"] if b[0] not in _NOT_IN_DRAFT]
+assert len(BOUND["ISSUE_DRAFT.md"]) == len(BOUND["RFC_ISSUE.md"]) - len(_NOT_IN_DRAFT), \
+    "a _NOT_IN_DRAFT name is not a RFC_ISSUE.md binding"
 
 # --- tier B allowlist: numbers that are facts of the code, the tests or the GPU validation run,
 # not of the benchmark data. Each with its source. Nothing else is allowed outside CLAIMS.md and

@@ -173,9 +173,13 @@ flake8 --config .flake8 gpu4pyscf
 
 ## 6. Post the issue
 
-- [ ] Open a GitHub issue on `pyscf/gpu4pyscf` with the body of `RFC_ISSUE.md` (drop the HTML
-      comment at the top). Title: "RFC: opt-in mixed-precision SCF for density-fitted RKS on
-      FP64-limited GPUs". Upstream has no issue template.
+- [ ] **`ISSUE_DRAFT.md` is the text to post**; `RFC_ISSUE.md` is its reviewed source (the same
+      numbers, with the staging comment, the internal labels and the long form kept for the
+      record). Both are checked by `verify_rfc.py`, the draft against the subset of the source's
+      headline figures it prints. Edit a number in the source first, then in the draft.
+- [ ] Open a GitHub issue on `pyscf/gpu4pyscf` with the body of `ISSUE_DRAFT.md` (everything after
+      its `Title:` line and the blank line that follows). Title: "RFC: opt-in mixed-precision SCF for
+      density-fitted RKS on FP64-limited GPUs". Upstream has no issue template.
 - [ ] Attach nothing to the issue beyond the two links (the code branch and the evidence branch);
       the evidence branch is the attachment.
 - [ ] **Wait for maintainer feedback.** The six questions (0–5) at the end of the issue decide the
