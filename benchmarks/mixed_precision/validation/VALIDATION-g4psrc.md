@@ -58,7 +58,9 @@ not fit a 16 GB card beside another tenant.
   fails on master and on the branch alike with `KeyError: "LibXCFunctional: name 'COACH' not
   found."`: the libxc 0.9.0 wheel that upstream's V100 job installs does not name the functional
   that upstream #938 added. G5 records base failures and does not gate them; on this pin set no
-  test is skipped, which is why the base's skip count is 0 rather than 1.
+  test is skipped, which is why the base's skip count is 0 rather than 1. Upstream has since
+  addressed it: #960 (on master at `e1020c3`) makes `test_nr_coach` skip on a pyscf older than
+  2.15 or a libxc without `COACH`, so this base failure will not recur on a rebase past it.
 - **V100 durations, new tests only** (`pytest --durations=20`, in the JSON): 133 s in all. The
   slowest single test is 18.3 s (`test_vv10_paracetamol`), then 17.5 s
   (`test_kernels_against_stock_vv10nlc`), 11.8 s and 10.0 s; everything else is under 10 s. One

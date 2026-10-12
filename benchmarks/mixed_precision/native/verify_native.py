@@ -31,6 +31,8 @@ DATA = os.path.join(HERE, "data")
 R = 3            # warm pairs per cell in every pod of the campaign (a bridge cell has pair 1 only)
 
 results = []  # (claim, check, recomputed, banked, ok)
+raw = {}      # check -> the recomputed value before formatting, so a reader quoting it at a coarser
+              # precision (rfc/verify_rfc.py) rounds the data, not the printed string
 _cache = {}
 
 # Numbers printed in a RESULT that disagree with the data at their printed precision. They are NOT
@@ -153,6 +155,7 @@ def check(claim, what, fn, banked):
         value = fn()
         got = fmt_like(value, banked)
         ok = same_sci(got, banked) if "e" in banked.lower() else got == banked.strip()
+        raw[what] = value
     except Exception as e:  # fail closed
         got, ok = f"ERROR {type(e).__name__}: {e}", False
     results.append((claim, what, got, banked, ok))
@@ -1402,6 +1405,20 @@ for c, v_scf, v_tot, v_g in (("paracetamol/r2scan", "1.41", "1.28", "0.26"), ("p
     check("N10", f"G1 {c}: whole optimisation (SCF + gradient), S / MW", lambda k=k: _tot(k, "S") / _tot(k, "MW"), v_tot)
     check("N10", f"G1 {c}: gradient share of stock's optimisation",
           lambda k=k: sum(x["g"] for x in GEO[k]["S"]["step"]) / _tot(k, "S"), v_g)
+# The whole-optimisation column quotes the MW arm in every row. MW's steps and cycles equal M0's
+# and its rule never fired (below), so it ran as plain mixed; M0 is quoted where it is valid.
+_first = lambda k, a: GEO[k][a]["step"][0]["t"]
+check_true("N10", "G1 paracetamol/r2scan: M0 ran first and its first SCF paid the cold driver JIT (over 10x the first-step "
+                  "wall of MW and of S); in the other two cells M0's first step is within 2x of both",
+           lambda: _first(_G["paracetamol/r2scan"], "M0") > 10 * max(_first(_G["paracetamol/r2scan"], "MW"),
+                                                                     _first(_G["paracetamol/r2scan"], "S"))
+           and all(_first(k, "M0") < 2 * min(_first(k, "MW"), _first(k, "S"))
+                   for k in (_G["paracetamol/b3lyp"], _G["celecoxib/r2scan"])))
+check("N10", "G1 paracetamol/r2scan: whole optimisation (SCF + gradient), S / M0 (not a speed reading: the cold JIT)",
+      lambda: _tot(_G["paracetamol/r2scan"], "S") / _tot(_G["paracetamol/r2scan"], "M0"), "0.41")
+for c, v in (("paracetamol/b3lyp", "1.165"), ("celecoxib/r2scan", "1.270")):
+    check("N10", f"G1 {c}: whole optimisation (SCF + gradient), S / M0 (the plain arm)",
+          lambda k=_G[c]: _tot(k, "S") / _tot(k, "M0"), v)
 check("N10", "G1: lowest warm-step initial orbital-gradient norm (M0)",
       lambda: min(x["ws"]["gorb"] for k in _G.values() for x in GEO[k]["M0"]["step"][1:]), "0.014")
 check("N10", "G1: highest warm-step initial orbital-gradient norm (M0)",
@@ -1712,7 +1729,7 @@ def data_integrity():
     return probs
 
 
-EXPECTED_CHECKS = 947   # pinned: a check that silently disappears (or appears) is a FAIL
+EXPECTED_CHECKS = 951   # pinned: a check that silently disappears (or appears) is a FAIL
 
 
 def main():

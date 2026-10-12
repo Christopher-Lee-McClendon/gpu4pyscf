@@ -21,9 +21,12 @@ from gpu4pyscf.dft.mixed_precision import MixedPrecision
 
 mf = gpu4pyscf.dft.RKS(mol, xc='b3lyp').density_fit()
 mf.mixed_precision = MixedPrecision(xc=True, k=True)   # default: None, i.e. stock
-# The speed numbers in native/ were measured with, in addition, ao_cache_fp64=True,
-# xc_switch_tol=3e-4 for B3LYP, mf.grids.prune = None and cuTENSOR. The line above
-# (library defaults, pruned grid) is NOT measured; expect a smaller gain.
+# Most speed numbers in native/ were measured with, in addition, ao_cache_fp64=True,
+# xc_switch_tol=3e-4 for B3LYP, mf.grids.prune = None and cuTENSOR (the campaign
+# configuration). The line above, at the library defaults (pruned grid, no cache), was
+# measured on three molecules and one card (native/CLAIMS.md C7): stock wall / mixed wall
+# r2SCAN 1.577, B3LYP 1.636, wB97M-V 3.094, against 1.657 / 1.783 / 2.914 for 24 molecules
+# in the campaign configuration.
 mf.kernel()
 print(mf.mixed_precision_record)   # the precision of each iteration, and why it switched
 ```
@@ -54,9 +57,12 @@ print(mf.mixed_precision_record)   # the precision of each iteration, and why it
 - **Refused with `NotImplementedError` at `kernel()`, never silently ignored:**
   - UKS / ROKS / GKS, and RKS with spin ≠ 0 (every component);
   - multi-GPU (every component);
+  - the second-order solver, `mf.newton()`, with a policy set (every component; it bypasses the
+    SCF loop the policy hooks);
   - with `xc=True` or `k=True`: range-separated functionals, and NLC functionals (use
     `vv10=True` alone for those);
-  - `k=True` without density fitting;
+  - `k=True` without density fitting, or on a functional without exact exchange (there is no K
+    to treat; it used to pass silently);
   - with `vv10=True`: a functional with no NLC term, more than one VV10 term, or VV10
     coefficients outside b > 0 / finite, or a custom `NumInt` whose `nr_nlc_vxc` does not
     accept the `vv10_kernel` keyword.
@@ -64,7 +70,9 @@ print(mf.mixed_precision_record)   # the precision of each iteration, and why it
   A VV10 kernel that does not build or fails its forced probe raises `RuntimeError` at the start
   of the SCF.
 - **Memory.** The AO cache is capped at a fraction of free GPU memory (`ao_cache_mem_fraction`,
-  default 0.7). If it does not fit, XC stays FP64 for that SCF, K follows it (K is never FP32 while XC is FP64), and the record says why.
+  default 0.7). If it does not fit, XC stays FP64 for that SCF and K is held at FP64 with it (with
+  `xc` and `k` both on, K is never FP32 on an iteration where XC is FP64), and the record says why.
+  `mf.mixed_precision_record` is `None` until the first `kernel()`.
 - **FP64 AO cache (opt-in, `ao_cache_fp64=True`, default `False`).**
   - It also keeps an FP64 copy of the AO values, so the FP64 XC calls of the tail skip the AO
     evaluation. The cached FP64 path is bitwise identical to stock `nr_rks`.

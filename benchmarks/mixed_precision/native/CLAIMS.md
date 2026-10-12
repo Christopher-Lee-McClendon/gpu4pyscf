@@ -29,7 +29,10 @@ higher for wB97M-V (by 0.15); beyond the trio, how the two compare is not measur
 - R = 3 warm pairs per cell, plus one cold pair that is reported but excluded.
 - Within each pair the arms run in the order mixed, cache, stock, so stock runs last with a warm
   memory pool.
-- A ratio is stock median / mixed median: above 1 means mixed is faster.
+- **One ratio convention throughout: stock wall / mixed wall (stock median / mixed median over the
+  warm pairs), so above 1 means mixed is faster.** Where a column or check is labelled by its arm
+  pair, `a/b` (for example `mixed-default/stock-default`, `mixed/cache`), the label names the
+  treated arm `a` against the reference arm `b`; the number is still `b`'s wall over `a`'s.
 - Readings: PAYS ≥ 1.15; NEUTRAL in between; HARMS ≤ 0.95.
 - Within a healthy, non-DEGRADED pod, the spread of the R = 3 walls is mostly ≤ 3 %. On the
   DEGRADED replicates (L12r, L12r2) and on X3r it is not.
@@ -54,7 +57,7 @@ higher for wB97M-V (by 0.15); beyond the trio, how the two compare is not measur
 the table at the top), one card family (RTX PRO 6000 Workstation), one pod for r2SCAN and B3LYP.
 The same mode at the **library defaults** is C7, on the trio only.
 
-| 24 drug-like molecules, 20–44 atoms, campaign configuration | mixed/stock geomean | S / M / L tiers | per-cell range | pods |
+| 24 drug-like molecules, 20–44 atoms, campaign configuration | stock wall / mixed wall, geomean (> 1 = mixed faster) | S / M / L tiers | per-cell range | pods |
 |---|---|---|---|---|
 | r2SCAN | **1.657** | 1.576 / 1.665 / 1.804 | 1.523–1.871 | 1 (L12), replicated below |
 | B3LYP | **1.783** | 1.736 / 1.779 / 1.897 | 1.584–1.994 | 1 (L12), replicated below |
@@ -165,7 +168,7 @@ An Amdahl decomposition of one pod, not an established cause:
 Trio geomeans (paracetamol, propranolol, celecoxib). The precision effect is mixed/cache: the FP32
 arithmetic's gain, with the cache's own gain removed.
 
-| card | pods | mixed/stock r2SCAN / B3LYP / wB97M-V | precision effect | cache alone |
+| card | pods | stock wall / mixed wall (> 1 = mixed faster), r2SCAN / B3LYP / wB97M-V | precision effect | cache alone |
 |---|---|---|---|---|
 | L40S | 1 per cell (X2a, X2b) | 1.729 / 1.524 / 2.994 | 1.655 / 1.463 / 2.981, PAYS | 1.045 / 1.041 / 1.004 |
 | H100 | 2 (X3, X3r) | X3: 1.320 / 0.905 / 0.577; X3r: 1.398 / 1.021 / 0.615 | X3: 1.084 / 0.745 / 0.539; X3r: 1.084 / 0.764 / 0.563. NEUTRAL / HARMS / HARMS on both (B3LYP includes paracetamol, median warm walls 0.60–0.99 s) | X3: 1.217 / 1.215 / 1.070; X3r: 1.290 / 1.336 / 1.092 |
@@ -287,11 +290,11 @@ M with R. The S arm was recorded in every sentinel but never read (see the ledge
 - campaign SCF settings, stock gradients;
 - arms: mixed, mixed with a warm-start rule, and stock.
 
-| cell | steps (mixed / stock) | endpoint RMSD vs stock (Å) | warm-step SCF wall, stock/mixed | whole optimisation, stock/mixed |
-|---|---|---|---|---|
-| paracetamol r2SCAN | 23 / 23 | 9.9e-6 | 1.41 | 1.28 |
-| paracetamol B3LYP | 26 / 26 | 1.5e-6 | 1.42 | 1.19 |
-| celecoxib r2SCAN | 16 / 16 | 4.0e-7 | 1.44 | 1.30 |
+| cell | steps (mixed / stock) | endpoint RMSD vs stock (Å) | warm-step SCF wall, stock wall / mixed wall (plain arm M0) | whole optimisation, stock wall / mixed wall (warm-start-rule arm MW, see Scope) | whole optimisation, plain arm M0 |
+|---|---|---|---|---|---|
+| paracetamol r2SCAN | 23 / 23 | 9.9e-6 | 1.41 | 1.28 | 0.41, not a speed reading (cold driver JIT, below) |
+| paracetamol B3LYP | 26 / 26 | 1.5e-6 | 1.42 | 1.19 | 1.165 |
+| celecoxib r2SCAN | 16 / 16 | 4.0e-7 | 1.44 | 1.30 | 1.270 |
 
 - **The same trajectory.** SCF cycles are equal on every step, except the last B3LYP step (mixed 4,
   stock 5).
@@ -308,10 +311,14 @@ M with R. The S arm was recorded in every sentinel but never read (see the ledge
 - **Scope.**
   - Three optimisations on one card, at the default convergence set, with `conv_tol_grad` at the
     library default.
-  - Wall ratios come from one run each.
-  - In paracetamol r2SCAN, the plain-mixed arm ran first and paid the cold driver JIT on its first
-    SCF, so its whole-optimisation total is not a speed reading. The table quotes the
-    warm-start-rule arm, whose steps were identical.
+  - Wall ratios come from one run each (one run per arm, three arms per cell).
+  - **The whole-optimisation column quotes the warm-start-rule arm (MW) in all three rows**, not
+    the plain mixed arm (M0). MW's steps and SCF cycles are identical to M0's and its rule never
+    fired, so it ran as plain mixed. The reason is paracetamol r2SCAN: there M0 ran first and paid
+    the cold driver JIT on its first SCF (over ten times the first-step wall of either other arm),
+    so its total is not a speed reading (S/M0 reads 0.41). In the other two cells M0 is valid and
+    reads a little lower than MW: 1.165 (paracetamol B3LYP, MW 1.19) and 1.270 (celecoxib r2SCAN,
+    MW 1.30). The warm-step SCF column is M0 in every row.
 
 ## C7. Library defaults (the trio, one card): the mode still pays; less than the campaign configuration for r2SCAN and B3LYP, more for wB97M-V `[N11]`
 

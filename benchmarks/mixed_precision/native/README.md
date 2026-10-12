@@ -19,7 +19,7 @@ python verify_native.py      # stdlib only; exit 0 = every quoted number reprodu
 | file | what it is |
 |---|---|
 | `CLAIMS.md` | What the RFC may claim, and what it must not. Includes the measured configuration, negative results, cold start, what can and cannot be verified, and a ledger of every miss, correction and lapse. |
-| `verify_native.py` | Recomputes 947 quoted numbers and facts from `data/` at their printed precision, and re-extracts every CSV from its pod's sentinel. It checks `data/SHA256SUMS` first, fails closed, and pins its own check count. A listed known discrepancy must still recompute to its corrected value. |
+| `verify_native.py` | Recomputes 951 quoted numbers and facts from `data/` at their printed precision, and re-extracts every CSV from its pod's sentinel. It checks `data/SHA256SUMS` first, fails closed, and pins its own check count. A listed known discrepancy must still recompute to its corrected value. |
 | `reproduce_native.py` | Re-measures one speed cell on your GPU with the campaign's settings, cuTENSOR preload and cuTENSOR gate. Transcribed from the harness and dry-run-tested only: see its header. |
 | `SOURCES.md` | Pod, GitHub run, commit, card, contention and noise flags behind every CSV. |
 | `data/*.csv` | Per-run walls, energies, cycles, convergence and cache tiers (one CSV per pod), plus `pods.csv`, `downstream.csv` and `tiers.csv`. |
