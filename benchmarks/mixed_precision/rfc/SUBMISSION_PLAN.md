@@ -301,3 +301,15 @@ therefore done. Every place marked for update after r5 now carries the r5 figure
 was re-bound to them and passes, and the four earlier heads stay on the fork as frozen branches
 (CHECKLIST state of play). Remaining before posting: CHECKLIST §1's last re-check
 (`e1020c3..upstream/master`), §5, the public-branch hygiene step, and §6.
+
+## Status note (2026-10-12, second independent review)
+
+The hygiene step is done as a script, `rfc/make_evidence_branch.sh`, and both texts now link
+`mixed-precision-evidence` instead of the package branch. The review found the first build of that
+branch (`798714d`) empty of data: upstream's `.gitignore` ignores `*.csv` and the script's `git add
+-A` dropped all 56 CSVs, so `verify_native.py` could not run there. The script now adds with `-f`,
+checks the committed tree against the package archive and runs the checkers on the commit; the
+branch must be rebuilt and pushed (CHECKLIST §5). The texts also now carry the UNQUOTABLE label on
+pod D1's accuracy cells (CLAIMS C4), the MODEL-MISS labels on XL B3LYP and the H100 readings, and
+no longer state a cause for B3LYP's size dependence that CLAIMS C2 leaves unexplained. Upstream
+master re-checked the same day: still `e1020c3`.

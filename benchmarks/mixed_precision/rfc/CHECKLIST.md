@@ -9,7 +9,9 @@ State of play (updated 2026-10-12):
 |---|---|
 | code branch | `chris-lee-mc/gpu4pyscf@mixed-precision-upstream`, head `d642f3da971650d24dc147e212ce932d03757811`, four commits (`9b129af` XC + K, `301cfe9` VV10, `5e81866` AO cache, `d642f3d` docstring and README; +3054/−39 over ten files) on upstream master `e1020c32ae789cd8218c333e1ee2fc74348a9841` |
 | review fixes on the code branch (validated by r5) | copyright `2026` on the four new files; `mf.newton()` with a policy set refuses (`NotImplementedError`, `scf/soscf.py`); `k=True` on a functional without exact exchange refuses (was a silent no-op); `mf.mixed_precision_record` defaults to `None`; with `xc` and `k` both on, K is held at FP64 whenever XC falls back to FP64; six new tests (56 in all: 38 + 18) |
-| evidence package | `chris-lee-mc/gpu4pyscf@mixed-precision-rfc-package-v2`, `benchmarks/mixed_precision/` |
+| evidence package (staging) | `chris-lee-mc/gpu4pyscf@mixed-precision-rfc-package-v2`, `benchmarks/mixed_precision/`, with `rfc/` (this directory). Not linked from the texts |
+| evidence branch (the one the issue links) | `chris-lee-mc/gpu4pyscf@mixed-precision-evidence`: upstream `e1020c3` plus `benchmarks/mixed_precision/` without `rfc/` and `PR_DESCRIPTION.md`, built by `rfc/make_evidence_branch.sh`. **The pushed `798714d` (built from `3e8c5f7`) carries none of the 56 `*.csv` files** (upstream's `.gitignore` dropped them; the script now forces the add and checks the committed tree) and must be rebuilt and force-pushed before posting (§5) |
+| upstream master | `e1020c3`, re-checked with `git ls-remote` on 2026-10-12 after r5: unchanged |
 | last GPU validation of the code branch | g4psrc r5, engine-repo runs `38198811227` (`pro6000-lock`), `38201109296` (`pro6000-pyscf28`) and `38200149447` (`v100-ci`), on master `e1020c3`, from source for sm_120 and sm_70: PASS (`validation/VALIDATION-g4psrc.md`, `g4psrc_r5_*.json`). The pre-review head `3d9de5d` passed run `38194143624` and is superseded |
 | earlier heads, kept as branches | `mixed-precision-upstream-on-e1020c3-prereview` (`3d9de5d`), `mixed-precision-upstream-on-c1a6e37-r4` (r4, `4d2f3de`), `mixed-precision-upstream-on-c1a6e37` (r3, `ac4c668e`), `mixed-precision-upstream-on-82bc702` (r2), `mixed-precision-upstream-on-eef5f5b` (r1) |
 
@@ -39,6 +41,8 @@ State of play (updated 2026-10-12):
       136 s, slowest 18.4 s and 16.9 s, VV10 bitwise identity; no trio). The superseded pre-review
       run `38194143624` (`3d9de5d`) is recorded as such. `validation/g4psrc_r5_*.json` added;
       `PR_BODY.md`, `RFC_ISSUE.md` and `verify_rfc.py` cite r5.
+- [x] Re-checked on 2026-10-12 after r5 and the second review: `git ls-remote
+      https://github.com/pyscf/gpu4pyscf.git refs/heads/master` still returns `e1020c3`.
 - [ ] Immediately before posting: `git fetch upstream && git log --oneline e1020c3..upstream/master`
       (this was `c1a6e37..upstream/master` before r5). If the list is non-empty, rebase again,
       re-run g4psrc (the engine repo pins `BASE_SHA` in `.github/scripts/runpod_g4psrc.py`, with a
@@ -84,7 +88,8 @@ flake8 --config .flake8 gpu4pyscf
 
 - [x] `PR_DESCRIPTION.md` is marked as superseded by `rfc/PR_BODY.md` (it describes the v1.8.1
       branch: "21 tests", "+914 / −18"); its dead `DISCUSSION-DRAFT` reference now points to
-      `rfc/RFC_ISSUE.md`. Delete it from the package branch before posting if you prefer.
+      `rfc/RFC_ISSUE.md`. `rfc/make_evidence_branch.sh` excludes it from the evidence branch, so
+      it never reaches the branch the issue links; it may stay here.
 - [x] `README.md` now says 46 pods (44 plus PREREG-9's LD1 and LD2), matching `native/README.md`
       and `native/SOURCES.md`.
 - [x] The `mixed_precision.py` docstring (amended into the fourth commit, then `4d2f3de4`, now
@@ -141,29 +146,38 @@ flake8 --config .flake8 gpu4pyscf
         repository's `.claude/skills/` notes and `CLAUDE.md`.
       Check that nothing else has appeared. This should total 7, in those four files:
       `git grep -c -i -E 'claude|opus|sonnet|haiku|fable|gpt|anthropic|runpod_api|api_key' -- benchmarks/mixed_precision/native/provenance/harness`
-- [ ] The package branch is pushed and the links in `RFC_ISSUE.md` resolve (they point at the
-      `mixed-precision-upstream` tree and at `benchmarks/mixed_precision/` on
-      `mixed-precision-rfc-package-v2`).
-- [ ] **Public-branch hygiene (described, not done).** The branch the issue links must not carry
-      the planning material: `rfc/SUBMISSION_PLAN.md` (maintainer-behaviour analysis and merge
-      estimates), this checklist (the forbidden-string list) and the superseded
-      `PR_DESCRIPTION.md`; `rfc/RFC_ISSUE.md`, `rfc/PR_BODY.md` and `rfc/verify_rfc.py` are the
-      staged texts and their checker and may stay or go with the rest. Either (a) link a clean
-      evidence-only branch: `git checkout -b mixed-precision-rfc-evidence
-      mixed-precision-rfc-package-v2 && git rm -r benchmarks/mixed_precision/rfc
-      benchmarks/mixed_precision/PR_DESCRIPTION.md`, commit, push, and point both links in
-      `RFC_ISSUE.md` at that branch; or (b) move `rfc/` off `mixed-precision-rfc-package-v2` to a
-      private branch before posting. In either case `verify_rfc.py` must still be run from a tree
-      that has both `rfc/` and `native/`, so run §5 before the split, and re-check that the package
-      `README.md` (which the issue cites for the API, the refusals and the VV10/AO-cache details)
-      is on the linked branch.
+- [x] **Public-branch hygiene: a clean evidence-only branch.** The branch the issue links must not
+      carry the planning material (`rfc/SUBMISSION_PLAN.md`, this checklist, the superseded
+      `PR_DESCRIPTION.md`). `rfc/make_evidence_branch.sh <base-sha>` builds `mixed-precision-evidence`
+      as upstream master plus `benchmarks/mixed_precision/` without `rfc/` and `PR_DESCRIPTION.md`,
+      refuses if any remaining file mentions the staging files, checks the committed tree file for
+      file against the package archive, and runs both evidence checkers on an archive of the commit.
+      `RFC_ISSUE.md` and `PR_BODY.md` link that branch (code: the `mixed-precision-upstream` tree;
+      evidence: `benchmarks/mixed_precision/` on `mixed-precision-evidence`); the package branch
+      is not linked. `verify_rfc.py` needs both `rfc/` and `native/`, so it runs here, on the
+      package branch, never on the evidence branch.
+- [ ] **After any change to the package, rebuild and push the evidence branch**, from the root
+      of the package branch with the change committed:
+
+      ```
+      benchmarks/mixed_precision/rfc/make_evidence_branch.sh e1020c32ae789cd8218c333e1ee2fc74348a9841
+      git push -f origin mixed-precision-evidence
+      ```
+
+      Then, on the pushed branch: `git ls-tree -r --name-only origin/mixed-precision-evidence
+      benchmarks/mixed_precision | grep -c '\.csv$'` must read **56** (the first build, `798714d`,
+      read 0: upstream's `.gitignore` has `*.csv` without the package branch's exceptions, and the
+      script's `git add -A` dropped every data file; the script now adds with `-f` and verifies the
+      commit), and `native/verify_native.py` and `verify_aggregates.py` must pass from a checkout
+      of that branch. The two links in `RFC_ISSUE.md` and the one in `PR_BODY.md` must resolve.
 
 ## 6. Post the issue
 
 - [ ] Open a GitHub issue on `pyscf/gpu4pyscf` with the body of `RFC_ISSUE.md` (drop the HTML
       comment at the top). Title: "RFC: opt-in mixed-precision SCF for density-fitted RKS on
       FP64-limited GPUs". Upstream has no issue template.
-- [ ] Attach nothing to the issue beyond the two links; the package is the attachment.
+- [ ] Attach nothing to the issue beyond the two links (the code branch and the evidence branch);
+      the evidence branch is the attachment.
 - [ ] **Wait for maintainer feedback.** The six questions (0–5) at the end of the issue decide the
       shape of the PR: whether it belongs in core at all or only as two seams (Q0, SUBMISSION_PLAN
       §5 Fallback A), policy object vs flag, device guard, whether VV10 and the AO cache go in the
