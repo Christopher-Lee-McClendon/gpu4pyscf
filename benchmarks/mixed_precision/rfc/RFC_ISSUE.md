@@ -81,9 +81,10 @@ and under pyscf 2.8.
 
 ## Evidence
 
-Speed was measured with an earlier head of the fork (tree `63af0568`, the same two mixed-precision
-modules up to a docstring and one `block_loop` keyword) overlaid on the v1.8.1 `cuda12x` wheel with
-`cupy-cuda12x` 14.1.1 and cuTENSOR 2.3.1 (required and checked as loaded on every pod); the
+Speed was measured with an earlier head of the fork (tree `63af0568`: the same algorithms; the
+modules changed since only in docstrings, one `block_loop` keyword, the newton and non-hybrid `k` refusals
+and the XC-fallback fix, a path the measured runs did not take) overlaid on the v1.8.1 `cuda12x` wheel with
+`cupy-cuda12x` 14.1.1 and cuTENSOR 2.3.1 (required and checked as loaded in every run); the
 master-based branch was re-validated for correctness, not speed (below). Two caveats on that stack:
 the cuda12x wheel ships no sm_120 code, so on the Blackwell card both arms ran gpu4pyscf's own
 kernels from JIT-compiled compute_80 PTX (a cuda13x wheel, with native sm_120 code, was not

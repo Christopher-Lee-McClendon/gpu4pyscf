@@ -53,9 +53,9 @@ We have not compared the two: do you see `k` as redundant with it?
 
 ## Evidence
 
-Speed was measured with an earlier head of the fork (the same modules up to a docstring and one keyword) overlaid on
-the v1.8.1 `cuda12x` wheel, with `cupy-cuda12x` 14.1.1 and cuTENSOR 2.3.1 (required and checked as loaded on every
-pod). Two caveats: that wheel ships no sm_120 code, so on the Blackwell card both arms ran gpu4pyscf's own kernels
+Speed was measured with an earlier head of the fork (same algorithms; since then only docstrings, the refusals above
+and a fix to a fallback path those runs did not take) overlaid on the v1.8.1 `cuda12x` wheel, with `cupy-cuda12x`
+14.1.1 and cuTENSOR 2.3.1 (required and checked as loaded in every run). Two caveats: that wheel ships no sm_120 code, so on the Blackwell card both arms ran gpu4pyscf's own kernels
 from JIT-compiled compute_80 PTX (a cuda13x wheel, with native sm_120 code, was not measured); and upstream's README
 pairs CuPy with cuTENSOR 2.0.2 or 2.2.0 and #518 recommends 2.0.2, so a re-measurement on a recommended pair is a
 fair ask. Every ratio is stock wall / mixed wall (medians of three warm pairs per cell; above 1 means mixed is
@@ -72,7 +72,7 @@ faster). "Library defaults" is the default grid (level 3, `nwchem_prune`), no AO
 Two further wB97M-V runs read about 30 % lower (2.06; 1.92–2.13) and were excluded under a contention rule written
 after they had been seen; their re-runs on quiet cards read 2.96 and 2.87–3.05, but on shared GPUs expect the lower
 readings. On six molecules of 63–98 atoms, r2SCAN reads 1.93 (1.80 without one anomalous stock wall) and B3LYP 1.34
-(a pre-registered prediction missed; the largest tier among the 24 reads 1.897). B3LYP's gain falls with size: at
+(below the 1.897 of the largest of the 24, against our pre-registered prediction). B3LYP's gain falls with size: at
 475–559 Da the J/K stage, about half the stock SCF, gains only 5–7 % while XC gains 2–3×, which explains part of the
 drop; the rest is unexplained.
 

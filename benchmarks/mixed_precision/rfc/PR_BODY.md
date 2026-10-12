@@ -20,8 +20,9 @@ arithmetic. Functional evaluation, grid weights, J, every accumulator and every 
 Gradients and Hessians are untouched.
 
 Target: GPUs whose FP64 throughput is a small fraction of FP32. Speed was measured with an earlier
-head of this branch (fork tree `63af0568`: the same two mixed-precision modules up to a docstring
-and one `block_loop` keyword, with the hooks since re-authored on master) overlaid on the v1.8.1
+head of this branch (fork tree `63af0568`: the same algorithms; since then the hooks were re-authored on master,
+and the modules changed only in docstrings, one `block_loop` keyword, the newton and non-hybrid `k`
+refusals, and the XC-fallback fix, a path the measured runs did not take) overlaid on the v1.8.1
 `cuda12x` wheel (which ships no sm_120 code, so on the Blackwell card both arms ran gpu4pyscf's own
 kernels from JIT-compiled compute_80 PTX); the master-based head was re-validated for correctness,
 not speed (Test plan). Every ratio
