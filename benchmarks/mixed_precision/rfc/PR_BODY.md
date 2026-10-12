@@ -22,7 +22,9 @@ Gradients and Hessians are untouched.
 Target: GPUs whose FP64 throughput is a small fraction of FP32. Speed was measured with an earlier
 head of this branch (fork tree `63af0568`: the same two mixed-precision modules up to a docstring
 and one `block_loop` keyword, with the hooks since re-authored on master) overlaid on the v1.8.1
-wheel; the master-based head was re-validated for correctness, not speed (Test plan). Every ratio
+`cuda12x` wheel (which ships no sm_120 code, so on the Blackwell card both arms ran gpu4pyscf's own
+kernels from JIT-compiled compute_80 PTX); the master-based head was re-validated for correctness,
+not speed (Test plan). Every ratio
 below is **stock wall / mixed wall** (> 1 means mixed is faster). Against stock GPU4PySCF on an RTX
 PRO 6000 Blackwell Workstation, 24 drug-like molecules (20–44 atoms), def2-mTZVPP, three warm pairs
 per cell, at the settings listed under Evidence (not the library defaults): r2SCAN 1.657, B3LYP
@@ -61,8 +63,10 @@ bitwise equal to `nr_rks` (`test_fp64_cached_is_bitwise_stock_nr_rks`, with a ne
 
 ## Design points
 
-- **Opt-in per object**, nothing enabled by GPU model; precedent: explicit reduced precision in
-  RI-MP2 and TDDFT-RIS.
+- **Opt-in per object**, nothing enabled by GPU model, as #855 required of FP32 multigrid
+  (`ENABLE_FP32_MULTIGRID`, experimental, default OFF). The attribute precedent is `fp_type` in
+  RI-MP2 (`__config__`-backed, default `'FP64'`); TDDFT-RIS's `single` defaults to True, so it is
+  not an opt-in precedent.
 - **Refusals are loud** (`NotImplementedError` at `kernel()`): UKS/ROKS/GKS and spin ≠ 0;
   multi-GPU; the second-order solver (`mf.newton()` with a policy set: it bypasses `scf()`, where
   the policy is opened); with `xc`/`k`, range-separated and NLC functionals; `k` without density
@@ -98,8 +102,9 @@ Full detail, protocols, raw per-run data and the script that recomputes every be
 on the fork's `mixed-precision-evidence` branch (`CLAIMS.md`, `verify_native.py`; the GPU
 validation records are in `../validation/`). Most of it is in the campaign configuration, which differs
 from the library defaults: `ao_cache_fp64=True`, grid level 3 with `grids.prune = None`, B3LYP
-`xc_switch_tol=3e-4`, cuTENSOR 2.3.1, def2-mTZVPP / def2-tzvpp-jkfit, `conv_tol=1e-9`, default
-`conv_tol_grad`. The library defaults were measured separately on three molecules (CLAIMS C7).
+`xc_switch_tol=3e-4`, cuTENSOR 2.3.1 with `cupy-cuda12x` 14.1.1 (upstream's README pairs CuPy with
+cuTENSOR 2.0.2 or 2.2.0 and #518 recommends 2.0.2), def2-mTZVPP / def2-tzvpp-jkfit, `conv_tol=1e-9`,
+default `conv_tol_grad`. The library defaults were measured separately on three molecules (CLAIMS C7).
 
 - **Speed at the library defaults** (CLAIMS C7; paracetamol, propranolol, celecoxib; the default
   grid with `nwchem_prune`, no AO cache, default tolerances, the policies as in the Summary; one

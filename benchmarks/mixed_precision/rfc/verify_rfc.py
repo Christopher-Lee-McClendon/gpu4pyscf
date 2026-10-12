@@ -239,6 +239,10 @@ ALLOWLIST = {
     "2.8": "upstream unittest.yml multi-gpu job: pip install pyscf==2.8; g4psrc r5 pro6000-pyscf28 ran 2.8.0",
     "0.9": "upstream unittest.yml single-gpu job: gpu4pyscf-libxc-cuda12x 0.9.0; g4psrc r5 v100-ci ran it",
     "1.17": "upstream requirements / multi-gpu job: scipy 1.17, not tested (r4 Amendment 1; r5 kept 1.15.3)",
+    # version strings: the measurement stack (requirements.lock) and upstream's recommended cuTENSOR pairings
+    "14.1": "requirements.lock / ENVIRONMENT.md: cupy-cuda12x==14.1.1",
+    "2.0": "upstream README: CuPy 13.3.0 + cuTENSOR 2.0.2, the pairing pyscf/gpu4pyscf#518 recommends",
+    "2.2": "upstream README: CuPy 13.4.1 + cuTENSOR 2.2.0",
     # RFC prose
     "5": "CLAIMS C1: 5 healthy pods",
     "24": "CLAIMS C1: 24 molecules",

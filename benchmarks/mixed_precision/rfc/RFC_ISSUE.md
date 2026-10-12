@@ -39,10 +39,17 @@ mf.mixed_precision_record      # precision of every iteration and why it switche
 #               ao_cache_mem_fraction=0.7, ao_cache_fp64=False
 ```
 
-Every component defaults to off; nothing is enabled by GPU model. Precedents in tree for explicit
-reduced precision: `mp/dfmp2.py`'s `fp_type` (a `__config__`-backed attribute in `_keys`),
-`tdscf/ris.py`'s `single` (warns below `conv_tol` 1e-5), `ENABLE_FP32_MULTIGRID` and the cuEST
-wrapper's precision parameters; the policy could take a `__config__` default the same way.
+Every component defaults to off; nothing is enabled by GPU model, in line with the policy stated in
+#855 ("We don't plan to enable fp32 by default, as its numerical behavior is not guaranteed"), which
+landed FP32 multigrid as an experimental, default-OFF build option, `ENABLE_FP32_MULTIGRID`. Other
+reduced-precision switches in tree: `mp/dfmp2.py`'s `fp_type` (a `__config__`-backed attribute in
+`_keys`, default `'FP64'`), `tdscf/ris.py`'s `single` (default True, so not an opt-in; it warns
+below `conv_tol` 1e-5) and the cuEST wrapper's `math_mode` (a whole-handle setting, initialised to
+`native_fp64`, that holds for every call); the policy could take a `__config__` default the same
+way. The closest prior art is #214, a mixed-precision direct-SCF trial closed unmerged, which split
+direct-SCF J/K by integral magnitude for the whole run; this proposal is DF only, uses FP32 only in
+early iterations, always finishes convergence in FP64, and refuses unsupported cases instead of
+falling back silently.
 
 Unsupported configurations are refused with `NotImplementedError` at `kernel()`, never silently:
 UKS/ROKS/GKS and spin ≠ 0; multi-GPU; the second-order solver (`mf.newton()`); with `xc`/`k`,
@@ -75,13 +82,19 @@ and under pyscf 2.8.
 ## Evidence
 
 Speed was measured with an earlier head of the fork (tree `63af0568`, the same two mixed-precision
-modules up to a docstring and one `block_loop` keyword) overlaid on the v1.8.1 wheel; the
-master-based branch was re-validated for correctness, not speed (below). Every ratio is **stock
-wall / mixed wall** (medians of three warm pairs per cell; above 1 means mixed is faster), to two
-decimals here and three in the package. The **library defaults** (default pruned grid, no AO cache,
-default tolerances, the policies above) were measured on three molecules and one card (CLAIMS C7);
-everything else is in the **campaign configuration** (`ao_cache_fp64=True`, pruning off, B3LYP
-`xc_switch_tol=3e-4`, cuTENSOR 2.3.1, def2-mTZVPP / def2-tzvpp-jkfit, `conv_tol=1e-9`; CLAIMS C1–C6).
+modules up to a docstring and one `block_loop` keyword) overlaid on the v1.8.1 `cuda12x` wheel with
+`cupy-cuda12x` 14.1.1 and cuTENSOR 2.3.1 (required and checked as loaded on every pod); the
+master-based branch was re-validated for correctness, not speed (below). Two caveats on that stack:
+the cuda12x wheel ships no sm_120 code, so on the Blackwell card both arms ran gpu4pyscf's own
+kernels from JIT-compiled compute_80 PTX (a cuda13x wheel, with native sm_120 code, was not
+measured); and upstream's README pairs CuPy with cuTENSOR 2.0.2 or 2.2.0 and #518 recommends 2.0.2,
+so a re-measurement on a recommended pair is a fair ask. Every ratio is **stock wall / mixed wall**
+(medians of three warm pairs per cell; above 1 means mixed is faster), to two decimals here and
+three in the package. The **library defaults** (the default grid, level 3 with `nwchem_prune`; no AO
+cache; default tolerances; the policies above) were measured on three molecules and one card
+(CLAIMS C7); everything else is in the **campaign configuration** (`ao_cache_fp64=True`,
+`grids.prune = None`, B3LYP `xc_switch_tol=3e-4`, cuTENSOR 2.3.1, def2-mTZVPP / def2-tzvpp-jkfit,
+`conv_tol=1e-9`; CLAIMS C1–C6).
 
 **Speed, RTX PRO 6000 Blackwell Workstation** (one card family; one pod for the r2SCAN/B3LYP ladder):
 
