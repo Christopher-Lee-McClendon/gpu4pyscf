@@ -74,12 +74,19 @@ BOUND = {
         ("B3LYP but omeprazole: highest max |g_M - g_S|", "2.7e-7"),
         ("wb97m-v: lowest max |g_M - g_S| (Ha/Bohr)", "1.2e-8"),
         ("wb97m-v: highest max |g_M - g_S| (Ha/Bohr)", "3.2e-8"),
-        ("r2scan: lowest max |mu_M - mu_S| (D)", "3.0e-7"),
         ("r2scan: highest max |mu_M - mu_S| (D)", "2.4e-6"),
-        ("B3LYP but omeprazole: lowest max |mu_M - mu_S| (D)", "2.0e-7"),
         ("B3LYP but omeprazole: highest max |mu_M - mu_S| (D)", "9.3e-6"),
-        ("wb97m-v: lowest max |mu_M - mu_S| (D)", "1.2e-12"),
         ("wb97m-v: highest max |mu_M - mu_S| (D)", "5.9e-12"),
+        # quotable accuracy at conv_tol_grad 3e-6 (PREREG-8 A1/A2, pods PASS): leads the section
+        ("r2scan: lowest max |g_Mt - g_St|", "1.5e-9"),
+        ("r2scan: highest max |g_Mt - g_St|", "2.3e-8"),
+        ("b3lyp: lowest max |g_Mt - g_St|", "6.8e-9"),
+        ("b3lyp: highest max |g_Mt - g_St|", "2.2e-7"),
+        ("wb97m-v: lowest max |g_Mt - g_St|", "1.1e-8"),
+        ("wb97m-v: highest max |g_Mt - g_St|", "2.1e-8"),
+        ("r2scan: highest max |mu_Mt - mu_St| (D)", "1.4e-6"),
+        ("b3lyp: highest max |mu_Mt - mu_St| (D)", "8.7e-6"),
+        ("wb97m-v: highest max |mu_Mt - mu_St| (D)", "4.5e-12"),
         ("omeprazole B3LYP: max |g_M - g_S|", "4.4e-6"),
         ("omeprazole B3LYP: max |mu_M - mu_S| (D)", "1.9e-4"),
         ("omeprazole B3LYP: S-R over M-R", "3.4"),
@@ -147,6 +154,16 @@ BOUND = {
         ("G1 celecoxib/r2scan: whole optimisation (SCF + gradient), S / M0 (the plain arm)", "1.270"),
         ("r2scan: highest max |mu_M - mu_S| (D)", "2.4e-6"),
         ("wb97m-v: highest max |mu_M - mu_S| (D)", "5.9e-12"),
+        # quotable accuracy at conv_tol_grad 3e-6 (PREREG-8 A1/A2, pods PASS): leads the section
+        ("r2scan: lowest max |g_Mt - g_St|", "1.5e-9"),
+        ("r2scan: highest max |g_Mt - g_St|", "2.3e-8"),
+        ("b3lyp: lowest max |g_Mt - g_St|", "6.8e-9"),
+        ("b3lyp: highest max |g_Mt - g_St|", "2.2e-7"),
+        ("wb97m-v: lowest max |g_Mt - g_St|", "1.1e-8"),
+        ("wb97m-v: highest max |g_Mt - g_St|", "2.1e-8"),
+        ("r2scan: highest max |mu_Mt - mu_St| (D)", "1.4e-6"),
+        ("b3lyp: highest max |mu_Mt - mu_St| (D)", "8.7e-6"),
+        ("wb97m-v: highest max |mu_Mt - mu_St| (D)", "4.5e-12"),
         ("omeprazole B3LYP: max |g_M - g_S|", "4.4e-6"),
         ("omeprazole B3LYP: max |mu_M - mu_S| (D)", "1.9e-4"),
         ("omeprazole B3LYP: S-R over M-R", "3.4"),
@@ -168,14 +185,15 @@ BOUND = {
 # from RFC_ISSUE.md's keeps the draft bound to the source: a figure revised in the source becomes a stale
 # binding in the draft until the draft is revised too.
 _NOT_IN_DRAFT = {
+    # default-tolerance dipole context: the draft leads with the quotable 3e-6 figures and keeps the
+    # default run to one sentence (residual, gradient range, omeprazole gradient, the failed gate)
+    "B3LYP but omeprazole: highest max |mu_M - mu_S| (D)",
+    "omeprazole B3LYP: max |mu_M - mu_S| (D)",
     "r2scan: highest max |g_M - g_S| (Ha/Bohr)",
     "B3LYP but omeprazole: lowest max |g_M - g_S|",
     "wb97m-v: lowest max |g_M - g_S| (Ha/Bohr)",
     "wb97m-v: highest max |g_M - g_S| (Ha/Bohr)",
-    "r2scan: lowest max |mu_M - mu_S| (D)",
     "r2scan: highest max |mu_M - mu_S| (D)",
-    "B3LYP but omeprazole: lowest max |mu_M - mu_S| (D)",
-    "wb97m-v: lowest max |mu_M - mu_S| (D)",
     "wb97m-v: highest max |mu_M - mu_S| (D)",
 }
 BOUND["ISSUE_DRAFT.md"] = [b for b in BOUND["RFC_ISSUE.md"] if b[0] not in _NOT_IN_DRAFT]

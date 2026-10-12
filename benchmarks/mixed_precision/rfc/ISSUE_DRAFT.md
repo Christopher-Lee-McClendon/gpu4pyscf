@@ -72,22 +72,22 @@ faster). "Library defaults" is the default grid (level 3, `nwchem_prune`), no AO
 Two further wB97M-V runs read about 30 % lower (2.06; 1.92–2.13) and were excluded under a contention rule written
 after they had been seen; their re-runs on quiet cards read 2.96 and 2.87–3.05, but on shared GPUs expect the lower
 readings. On six molecules of 63–98 atoms, r2SCAN reads 1.93 (1.80 without one anomalous stock wall) and B3LYP 1.34
-(below the 1.897 of the largest of the 24, against our pre-registered prediction). B3LYP's gain falls with size: at
-475–559 Da the J/K stage, about half the stock SCF, gains only 5–7 % while XC gains 2–3×, which explains part of the
-drop; the rest is unexplained.
+(below the 1.897 of the largest of the 24, against our pre-registered prediction). At 475–559 Da the J/K stage, about
+half the stock SCF, gains only 5–7 % while XC gains 2–3×; that explains part of B3LYP's drop with size, not all.
 
 Negative result on FP64-strong cards. An L40S behaves like the Blackwell card (r2SCAN 1.73, B3LYP 1.52, wB97M-V 2.99).
 An H100 does not: wB97M-V 0.58–0.61 (slower than stock), B3LYP 0.91–1.02, and r2SCAN's 1.32–1.40 comes almost
 entirely from the FP64 AO cache (the FP32 switch alone reads 1.08); we had predicted 1.20 and 1.35 for H100 B3LYP and
 wB97M-V. On an A100, 11 of 12 clean cells were neutral or slower. The code does not detect the device; see question 2.
 
-Accuracy (18 cells, three functionals × six molecules, mixed vs stock from the same guess and settings): gradients
-agree to 3.8e-9 – 2.7e-7 Ha/Bohr and dipoles to within 9.3e-6 D in 17 of 18 cells, with identical cycle counts. The
-exception, omeprazole B3LYP, took one extra cycle and sits 4.4e-6 Ha/Bohr and 1.9e-4 D from stock, but 3.4× closer
-than stock to a tight reference (`conv_tol` 1e-11), against which every |ΔE| is ≤ 1.6e-10 Ha and both arms carry the
-same 6.6e-7 – 3.4e-6 Ha/Bohr residual set by the default `conv_tol_grad`. Disclosure: the run holding the 12 r2SCAN and
-B3LYP cells failed one pre-registered gate (fluconazole r2SCAN's dipole against that reference, 1.004e-4 D on a 1e-4 D
-ceiling, a residual stock itself carries), so under our own rules those 12 cells are not quotable.
+Accuracy, mixed vs stock from the same guess and settings, at `conv_tol_grad = 3e-6` (the setting we recommend for
+gradients and properties; 14 cells): gradients agree to 1.5e-9 – 2.3e-8 Ha/Bohr for r2SCAN and 6.8e-9 – 2.2e-7 for
+B3LYP (six molecules each) and 1.1e-8 – 2.1e-8 for wB97M-V (two), dipoles to ≤ 1.4e-6, 8.7e-6 and 4.5e-12 D, with
+identical cycle counts in every cell. Caveat: that is tighter than gpu4pyscf's default. At the default (context; 18
+cells) both arms carry the same 6.6e-7 – 3.4e-6 Ha/Bohr residual against a `conv_tol` 1e-11 reference (every |ΔE|
+≤ 1.6e-10 Ha) and mixed vs stock is 3.8e-9 – 2.7e-7 Ha/Bohr, except omeprazole B3LYP (4.4e-6, one extra cycle, yet
+3.4× closer to the reference than stock). That run failed one pre-registered gate on a residual stock itself carries
+(fluconazole r2SCAN's dipole, 1.004e-4 D on a 1e-4 D ceiling), so its 12 r2SCAN/B3LYP cells are not quotable.
 
 Geometry optimisation (geomeTRIC, stock gradients, one card, one run per arm): paracetamol r2SCAN, paracetamol B3LYP
 and celecoxib r2SCAN take the same 23, 26 and 16 steps as stock, end within 9.9e-6 Å of stock's endpoint and pass a
