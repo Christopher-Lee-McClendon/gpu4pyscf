@@ -1,6 +1,6 @@
 # PREREG rfcbench-9: what the mode gives at library defaults
 
-**Status 2026-10-10: PRE-REGISTERED, not yet run.** Governed by `PREREG-rfcbench-0-measurand.md`.
+**Status 2026-10-10: PRE-REGISTERED; RUN and RESULT written 2026-10-10 (see Erratum 1).** Governed by `PREREG-rfcbench-0-measurand.md`.
 It freezes at the first PREREG-9 sentinel. Changes go only in dated amendments above RESULT,
 written before the dispatch they govern.
 
@@ -354,3 +354,10 @@ Dated, above RESULT, before the dispatch it governs.
   grid in `mixed-default` (protocol). The switch calls are recorded per arm in the sentinels.
 - **Scope.** One card model (RTX PRO 6000 Workstation), the trio only, and the 1.8.1-overlay build
   at `63af0568`. The FP64-strong cards (C3) were not re-measured at defaults.
+
+### Erratum 1 (2026-10-12, status line only; no number, gate or reading changes)
+
+Line 3 still read "PRE-REGISTERED, not yet run" after the RESULT was written. An independent review of
+the fork package flagged it. It now records that the protocol ran and has a RESULT. Nothing else
+changes.
+

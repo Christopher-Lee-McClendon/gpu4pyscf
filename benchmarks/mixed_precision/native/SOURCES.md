@@ -19,7 +19,7 @@ against `data/pods.csv`.
 `prereg/` mirrors `docs/upstream/PREREG-rfcbench-*.md` of `chris-lee-mc/gpu-conformer-engine`, including the errata (PR #229)
 PREREG-7's RESULT and errata (PR #231), PREREG-8's RESULT (PR #236) and its Erratum 1 (PR #245,
 a one-line redaction of an AI model's name; no number changes), PREREG-4's erratum 2 (PR #237) and
-PREREG-9 with its RESULT (PR #243), all merged into that repository's `main`. PREREG-9's protocol
+PREREG-9 with its RESULT (PR #243) and its status-line Erratum 1 (PR #246), all merged into that repository's `main`. PREREG-9's protocol
 text above the RESULT is byte-identical in `e1cc2bb5`, the commit both of its pods ran, which `main`
 keeps in its history (merged, not rebased).
 
