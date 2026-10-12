@@ -32,7 +32,7 @@ R = 3            # warm pairs per cell in every pod of the campaign (a bridge ce
 
 results = []  # (claim, check, recomputed, banked, ok)
 raw = {}      # check -> the recomputed value before formatting, so a reader quoting it at a coarser
-              # precision (rfc/verify_rfc.py) rounds the data, not the printed string
+              # precision (e.g. a two-decimal summary) rounds the data, not the printed string
 _cache = {}
 
 # Numbers printed in a RESULT that disagree with the data at their printed precision. They are NOT
