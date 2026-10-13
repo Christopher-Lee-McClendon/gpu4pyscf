@@ -77,6 +77,9 @@ def get_ab(td, mf, mo_energy=None, mo_coeff=None, mo_occ=None, singlet=True):
         grid_coords = pcmobj.surface['grid_coords']
 
         vmat = -int1e_grids(pcmobj.mol, grid_coords, charge_exponents = charge_exp**2, intopt = pcmobj.intopt)
+        if 'K_LU' not in pcmobj._intermediates:
+            raise NotImplementedError(
+                "PCM-TDDFT needs the LU intermediates: set cpcm_solver='lu'")
         K_LU = pcmobj._intermediates['K_LU']
         K_LU_pivot = pcmobj._intermediates['K_LU_pivot']
         if not isinstance(K_LU, cp.ndarray):

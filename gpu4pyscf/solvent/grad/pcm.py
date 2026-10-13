@@ -228,6 +228,88 @@ def left_multiply_dS_offdiagonal(surface, right_vector, transpose = False, strea
         output *= -1
     return output.T
 
+# The dS kernel of lib/solvent/pcm.cu (_pcm_left_multiply_dS) with its
+# transcendentals in FP32: the pair geometry (dx, dy, dz) and every sum are
+# FP64. f(x) = erf(x) - 2x/sqrt(pi) exp(-x^2) cancels for small x, so below
+# x = 1 it is summed from its series, (4/sqrt(pi)) sum_k (-1)^k x^(2k+3) /
+# (k! (2k+3)), whose 12 terms reach FP32 rounding at x = 1.
+_DS_FP32_SRC = r'''
+extern "C" __global__
+void pcm_left_multiply_ds_fp32(double* __restrict__ output, const double* __restrict__ v,
+                               const double* __restrict__ coords,
+                               const double* __restrict__ charge_exp, const int n)
+{
+    __shared__ double red[32 * 32];
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    double sx = 0.0, sy = 0.0, sz = 0.0;
+    if (i < n) {
+        const double xi = coords[3*i], yi = coords[3*i+1], zi = coords[3*i+2];
+        const float ei = (float)charge_exp[i];
+        for (int j = threadIdx.y; j < n; j += blockDim.y) {
+            if (j == i) continue;
+            const double dx = xi - coords[3*j];
+            const double dy = yi - coords[3*j+1];
+            const double dz = zi - coords[3*j+2];
+            const float fx = (float)dx, fy = (float)dy, fz = (float)dz;
+            const float r2 = fx*fx + fy*fy + fz*fz;
+            const float r = sqrtf(r2);
+            const float ej = (float)charge_exp[j];
+            const float xij = ei * ej * rsqrtf(ei*ei + ej*ej);
+            const float x = xij * r;
+            const float x2 = x * x;
+            float f;
+            if (x < 1.0f) {
+                // (4/sqrt(pi)) x^3 sum_k (-1)^k x^(2k) / (k! (2k+3))
+                float term = 1.0f, acc = 1.0f / 3.0f;
+                for (int k = 1; k < 12; k++) {
+                    term *= -x2 / (float)k;
+                    acc += term / (float)(2*k + 3);
+                }
+                f = 2.256758334191025f * x * x2 * acc;
+            } else {
+                f = erff(x) - 1.1283791670955126f * x * expf(-x2);
+            }
+            const float dsdr_over_r = -f / (r2 * r);
+            const double vj = v[j];
+            sx += (double)(dsdr_over_r * fx) * vj;
+            sy += (double)(dsdr_over_r * fy) * vj;
+            sz += (double)(dsdr_over_r * fz) * vj;
+        }
+    }
+    const int t = threadIdx.y * 32 + threadIdx.x;
+    double* sums[3] = {&sx, &sy, &sz};
+    for (int c = 0; c < 3; c++) {
+        red[t] = *sums[c];
+        __syncthreads();
+        for (int stride = 16; stride > 0; stride >>= 1) {
+            if (threadIdx.y < stride) red[t] += red[t + stride * 32];
+            __syncthreads();
+        }
+        if (threadIdx.y == 0 && i < n) output[c * n + i] = red[threadIdx.x];
+        __syncthreads();
+    }
+}
+'''
+_ds_fp32_kernel = None
+
+def left_multiply_dS_offdiagonal_fp32(surface, right_vector, transpose = False):
+    '''left_multiply_dS_offdiagonal with FP32 transcendentals and FP64 sums
+    (PCM.grad_ds_fp32).'''
+    global _ds_fp32_kernel
+    if _ds_fp32_kernel is None:
+        _ds_fp32_kernel = cupy.RawKernel(_DS_FP32_SRC, 'pcm_left_multiply_ds_fp32')
+    charge_exp  = cupy.ascontiguousarray(surface['charge_exp'], dtype=numpy.float64)
+    grid_coords = cupy.ascontiguousarray(surface['grid_coords'], dtype=numpy.float64)
+    n = charge_exp.shape[0]
+    assert right_vector.size == n
+    v = cupy.ascontiguousarray(right_vector, dtype=numpy.float64).reshape(n)
+    output = cupy.empty([3,n], order = "C")
+    _ds_fp32_kernel(((n + 31) // 32,), (32, 32),
+                    (output, v, grid_coords, charge_exp, numpy.int32(n)))
+    if transpose:
+        output *= -1
+    return output.T
+
 def left_multiply_dD(surface, right_vector, transpose = False, stream = None):
     grid_coords = surface['grid_coords']
     charge_exp  = surface['charge_exp']
@@ -544,7 +626,23 @@ def grad_solver(pcmobj, dm, v_grids = None, v_grids_l = None, q = None):
         #       This is the only term affected by this problem in energy and gradient calculation.
         #       In hessian calculation, similar problems occur in energy 2nd derivative and Fock derivative terms.
 
-    vK_1 = pcmobj.left_solve_K(v_grids_l, K_transpose = True)
+    # C-PCM / COSMO from the SCF's own intermediates: R = -f_epsilon I and K = S
+    # is symmetric, so K^-T v = K^-1 v = -q / f_epsilon, and the two dS terms
+    # below are equal (dS^T = -dS): one solve and one dS contraction are saved.
+    cpcm_identity = (pcmobj.if_method_in_CPCM_category and f_epsilon != 0 and
+                     pcmobj.frozen_dm0_for_finite_difference_without_response is None and
+                     v_grids is pcmobj._intermediates['v_grids'] and
+                     v_grids_l is v_grids and q is pcmobj._intermediates['q'])
+    if cpcm_identity:
+        vK_1 = -q / f_epsilon
+    else:
+        vK_1 = pcmobj.left_solve_K(v_grids_l, K_transpose = True)
+    if getattr(pcmobj, 'grad_ds_fp32', False):
+        if not pcmobj.if_method_in_CPCM_category:
+            raise NotImplementedError('grad_ds_fp32 is implemented for C-PCM and COSMO only')
+        dS_mult = left_multiply_dS_offdiagonal_fp32
+    else:
+        dS_mult = left_multiply_dS_offdiagonal
 
     def contract_bra(a, B, c):
         ''' i,xij,j->jx '''
@@ -560,8 +658,11 @@ def grad_solver(pcmobj, dm, v_grids = None, v_grids_l = None, q = None):
     de = cupy.zeros([natm, 3])
     if pcmobj.method.upper() in ['C-PCM', 'CPCM', 'COSMO']:
         # dR = 0, dK = dS
-        de_dS  = 0.5 * vK_1.reshape(-1, 1) * left_multiply_dS_offdiagonal(pcmobj.surface, q, stream = None)
-        de_dS -= 0.5 * q.reshape(-1, 1) * left_multiply_dS_offdiagonal(pcmobj.surface, vK_1, transpose = True, stream = None)
+        if cpcm_identity:
+            de_dS = (-1.0 / f_epsilon) * q.reshape(-1, 1) * dS_mult(pcmobj.surface, q)
+        else:
+            de_dS  = 0.5 * vK_1.reshape(-1, 1) * dS_mult(pcmobj.surface, q)
+            de_dS -= 0.5 * q.reshape(-1, 1) * dS_mult(pcmobj.surface, vK_1, transpose = True)
         de -= cupy.asarray([cupy.sum(de_dS[p0:p1], axis=0) for p0,p1 in gridslice])
 
         de -= 0.5 * contract_dSii(pcmobj.surface, vK_1 * q, pcmobj.surface_discretization_method)
