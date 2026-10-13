@@ -488,7 +488,8 @@ def cpcm_factorize(K, solver):
     'cholesky':    K = L L^T in FP64.
     'cholesky_ir': the Jacobi-scaled K factorised in FP32; each solve is then
                    refined against the FP64 K until the FP64 stopping test
-                   holds (see cpcm_solve), so the result is FP64-accurate.
+                   holds IN THE SCALED SYSTEM (see cpcm_solve), so the result
+                   is FP64-accurate.
                    Keeps the FP64 K (n^2 doubles) and the FP32 factor
                    (n^2 floats).
     '''
@@ -500,10 +501,13 @@ def cpcm_factorize(K, solver):
     assert solver == 'cholesky_ir'
     scale = 1.0 / cupy.sqrt(cupy.diag(K))
     Ks = (K * scale[:,None]) * scale[None,:]
+    # The stopping test runs in the scaled system: the cavity's K has a few huge
+    # diagonal entries (points whose switching function is nearly zero), which
+    # make an unscaled ||K||_inf bound vacuous for every other row.
+    Ks_norm_inf = float(cupy.abs(Ks).sum(axis=1).max())
     L32 = cupy.linalg.cholesky(Ks.astype(numpy.float32))
     Ks = None
-    out = {'K': K, 'K_scale': scale,
-           'K_norm_inf': float(cupy.abs(K).sum(axis=1).max()),
+    out = {'K': K, 'K_scale': scale, 'Ks_norm_inf': Ks_norm_inf,
            'ir_stats': {'solves': 0, 'iters': 0, 'max_iters': 0, 'fp64_fallback': None}}
     if bool(cupy.isfinite(L32).all()):
         out['K_chol32'] = L32
@@ -534,13 +538,15 @@ def cpcm_solve(intermediates, b):
         z = _chol_solve(L32, (r * scale).astype(numpy.float32))
         return z.astype(numpy.float64) * scale
     n = K.shape[0]
-    # dsposv: stop when ||r||_inf <= ||x||_inf * ||K||_inf * eps * sqrt(n), per column
-    tol = intermediates['K_norm_inf'] * numpy.finfo(numpy.float64).eps * numpy.sqrt(n)
+    # dsposv's test, applied to the Jacobi-scaled system Ks xs = bs (Ks = D K D,
+    # x = D xs, bs = D b, D = scale), per column:
+    #   ||D r||_inf <= ||x / D||_inf * ||Ks||_inf * eps * sqrt(n)
+    tol = intermediates['Ks_norm_inf'] * numpy.finfo(numpy.float64).eps * numpy.sqrt(n)
     x = solve32(b)
     for it in range(CPCM_IR_MAX_ITER + 1):
         r = b - K.dot(x)
-        rmax = cupy.abs(r).max(axis=0)
-        xmax = cupy.abs(x).max(axis=0)
+        rmax = cupy.abs(r * scale).max(axis=0)
+        xmax = cupy.abs(x / scale).max(axis=0)
         if bool((rmax <= tol * xmax).all()):
             stats['solves'] += 1
             stats['iters'] += it
