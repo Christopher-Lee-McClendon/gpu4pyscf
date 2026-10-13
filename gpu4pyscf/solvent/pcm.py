@@ -589,7 +589,7 @@ class PCM(lib.StreamObject):
         'frozen_dm0_for_finite_difference_without_response',
         'equilibrium_solvation', 'e', 'v', 'v_grids_n',
         'lowmem_intermediate_storage', 'surface_discretization_method',
-        'cpcm_solver', 'grad_ds_fp32',
+        'cpcm_solver', 'grad_ds_fp32', 'esp_cache', 'esp_cache_memory_fraction',
     }
 
     def __init__(self, mol, solvent=None):
@@ -615,6 +615,13 @@ class PCM(lib.StreamObject):
         # C-PCM / COSMO gradient: evaluate the dS kernel's erf/exp in FP32,
         # accumulating in FP64 (grad.pcm.left_multiply_dS_offdiagonal_fp32).
         self.grad_ds_fp32 = False
+        # Surface integrals (mu nu|g) kept on the device after build, so each SCF
+        # cycle's potential and Fock contribution are two passes over them
+        # (gpu4pyscf.solvent._esp_cache): None (default, int1e_grids every
+        # cycle), 'fp64' or 'fp32' (FP32 storage, FP64 sums). Not built, and
+        # recorded, if it does not fit this fraction of the free memory.
+        self.esp_cache = None
+        self.esp_cache_memory_fraction = 0.5
 
         self.max_cycle = 20
         self.conv_tol = 1e-7
@@ -684,6 +691,8 @@ class PCM(lib.StreamObject):
             logger.info(self, 'cpcm_solver = %s', self.cpcm_solver)
         if getattr(self, 'grad_ds_fp32', False):
             logger.info(self, 'grad_ds_fp32 = True')
+        if getattr(self, 'esp_cache', None) is not None:
+            logger.info(self, 'esp_cache = %s', self.esp_cache)
         return self
 
     def build(self, ng=None):
@@ -777,6 +786,20 @@ class PCM(lib.StreamObject):
         intopt = int3c1e.VHFOpt(mol)
         intopt.build(1e-14)
         self.intopt = intopt
+
+        tier = getattr(self, 'esp_cache', None)
+        if tier is not None:
+            from gpu4pyscf.solvent import _esp_cache
+            if tier not in _esp_cache.ESP_CACHE_TIERS:
+                raise ValueError(f'esp_cache must be None or one of '
+                                 f'{_esp_cache.ESP_CACHE_TIERS}, not {tier!r}')
+            cache, info = _esp_cache.build_esp_cache(
+                mol, grid_coords, charge_exp**2, intopt, tier,
+                self.esp_cache_memory_fraction)
+            self._intermediates['esp_cache'] = cache
+            self._intermediates['esp_cache_info'] = info
+            if cache is None:
+                logger.warn(self, 'esp_cache not built: %s', info['reason'])
 
         int2c2e = mol._add_suffix('int2c2e')
         fakemol_charge = gto.fakemol_for_charges(grid_coords.get(), expnt=charge_exp.get()**2)
@@ -872,6 +895,10 @@ class PCM(lib.StreamObject):
         '''
         return electrostatic potential on surface
         '''
+        cache = (self._intermediates or {}).get('esp_cache')
+        if cache is not None:
+            from gpu4pyscf.solvent import _esp_cache
+            return _esp_cache.esp(cache, self.intopt, dms)
         charge_exp  = self.surface['charge_exp']
         grid_coords = self.surface['grid_coords']
         v_grids_e = int1e_grids(self.mol, grid_coords, dm = dms, charge_exponents = charge_exp**2, intopt = self.intopt)
@@ -879,6 +906,10 @@ class PCM(lib.StreamObject):
 
     def _get_vmat(self, q):
         assert q.ndim == 2
+        cache = (self._intermediates or {}).get('esp_cache')
+        if cache is not None:
+            from gpu4pyscf.solvent import _esp_cache
+            return -_esp_cache.vmat(cache, self.intopt, q)
         charge_exp  = self.surface['charge_exp']
         grid_coords = self.surface['grid_coords']
         vmat = -int1e_grids(self.mol, grid_coords, charges = q, charge_exponents = charge_exp**2, intopt = self.intopt)

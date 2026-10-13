@@ -13,8 +13,9 @@
 # limitations under the License.
 
 '''C-PCM / COSMO solver options: the skipped transposed solve, Cholesky and
-FP32-Cholesky-with-refinement factorisations, the one-call gradient identity
-and the FP32 dS gradient kernel, each against the arithmetic it replaces.'''
+FP32-Cholesky-with-refinement factorisations, the one-call gradient identity,
+the FP32 dS gradient kernel and the device-resident surface integrals
+(esp_cache), each against the arithmetic it replaces.'''
 
 import unittest
 import numpy
@@ -215,6 +216,66 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(mf.e_tot, self.ref.e_tot, delta=1e-12)
         g = mf.nuc_grad_method().kernel()
         self.assertLess(abs(g - self.ref_grad).max(), 1e-8)
+
+    def test_esp_cache_matches_int1e_grids(self):
+        from gpu4pyscf.gto.int3c1e import int1e_grids
+        rng = cupy.random.default_rng(11)
+        nao = mol.nao
+        a = rng.standard_normal((2, nao, nao))
+        dms = a + a.transpose(0, 2, 1)
+        for tier, tol in (('fp64', 1e-12), ('fp32', 1e-6)):
+            cm = pcm.PCM(mol)
+            cm.esp_cache = tier
+            cm.build()
+            info = cm._intermediates['esp_cache_info']
+            self.assertTrue(info['built'], info)
+            self.assertEqual(cm._intermediates['esp_cache']['T'].dtype,
+                             numpy.float64 if tier == 'fp64' else numpy.float32)
+            coords = cm.surface['grid_coords']
+            exps = cm.surface['charge_exp']**2
+            ref_v = int1e_grids(mol, coords, dm=dms, charge_exponents=exps, intopt=cm.intopt)
+            got_v = cm._get_v(dms)
+            self.assertEqual(got_v.shape, ref_v.shape)
+            self.assertLess(float(abs(got_v - ref_v).max()), tol * float(abs(ref_v).max()), tier)
+            q = rng.standard_normal((2, coords.shape[0]))
+            ref_m = cupy.stack([-int1e_grids(mol, coords, charges=q[i], charge_exponents=exps,
+                                             intopt=cm.intopt) for i in range(2)])
+            got_m = cm._get_vmat(q)
+            self.assertEqual(got_m.shape, ref_m.shape)
+            self.assertLess(float(abs(got_m - ref_m).max()), tol * float(abs(ref_m).max()), tier)
+
+    def test_esp_cache_scf_and_gradient(self):
+        for tier, de, dg in (('fp64', 1e-10, 1e-9), ('fp32', 1e-8, 1e-7)):
+            cm = pcm.PCM(mol)
+            cm.esp_cache = tier
+            mf = scf.RHF(mol).PCM(cm)
+            mf.conv_tol = 1e-12
+            mf.kernel()
+            self.assertTrue(mf.converged)
+            self.assertTrue(mf.with_solvent._intermediates['esp_cache_info']['built'])
+            self.assertAlmostEqual(mf.e_tot, self.ref.e_tot, delta=de, msg=tier)
+            g = mf.nuc_grad_method().kernel()
+            self.assertLess(abs(g - self.ref_grad).max(), dg, tier)
+
+    def test_esp_cache_over_budget_falls_back_and_records(self):
+        cm = pcm.PCM(mol)
+        cm.esp_cache = 'fp64'
+        cm.esp_cache_memory_fraction = 1e-9
+        mf = scf.RHF(mol).PCM(cm)
+        mf.conv_tol = 1e-12
+        mf.kernel()
+        it = mf.with_solvent._intermediates
+        self.assertIsNone(it['esp_cache'])
+        self.assertFalse(it['esp_cache_info']['built'])
+        self.assertIn('does not fit', it['esp_cache_info']['reason'])
+        self.assertAlmostEqual(mf.e_tot, self.ref.e_tot, delta=1e-10)
+
+    def test_esp_cache_default_and_bad_tier(self):
+        self.assertIsNone(pcm.PCM(mol).esp_cache)
+        self.assertNotIn('esp_cache', self.ref.with_solvent._intermediates)
+        cm = pcm.PCM(mol)
+        cm.esp_cache = 'fp16'
+        self.assertRaises(ValueError, cm.build)
 
 if __name__ == "__main__":
     print("Full Tests for C-PCM solver options")
