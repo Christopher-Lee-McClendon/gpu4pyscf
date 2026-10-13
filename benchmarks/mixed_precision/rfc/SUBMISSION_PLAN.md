@@ -8,8 +8,10 @@ it is marked **estimate**. Written 2026-10-10 against code branch `mixed-precisi
 after `git fetch upstream` today) and package branch `mixed-precision-rfc-package-v2` @ `ea3d748`.
 **Later the same day** PREREG-9 (M1) and g4psrc r4 (G1, M2, G8) ran and the §6 edits were applied;
 the branch head became `4d2f3de4`. On 2026-10-12 the review fixes were applied, the branch was
-rebased onto `e1020c3` and re-validated as g4psrc r5 at head `d642f3d`; the commit SHAs and
-numstats in "At a glance" and §3 are updated to it. Everything else is left as planned, and the
+rebased onto `e1020c3` and re-validated as g4psrc r5 at head `d642f3d`. On 2026-10-13 it was
+rebased again, with no conflicts, onto `38df3b7` (#950) and re-validated as g4psrc r6 at head
+`cb1a2d7`; the commit SHAs and numstats in "At a glance" and §3 are updated to it (the numstats are
+unchanged). Everything else is left as planned, and the
 **status addenda at the end** say what is done and what is not.
 
 ## At a glance
@@ -18,7 +20,7 @@ numstats in "At a glance" and §3 are updated to it. Everything else is left as 
 |---|---|
 | top blocker | the new tests **error** on upstream's 2×T4 CI runner (`num_devices > 1` refusal, no skip); fix before the issue (G1) |
 | biggest evidence gap | no speed figure at library defaults (pruned grid, no cache); one pod answers it (M1) |
-| recommended PR shape | a stack: XC+K first (`9b129af`, +1033/−17, applies on master alone), VV10 and the AO cache as follow-ups; the cache commit only applies after VV10 unless re-authored |
+| recommended PR shape | a stack: XC+K first (`85a7395`, +1033/−17, applies on master alone), VV10 and the AO cache as follow-ups; the cache commit only applies after VV10 unless re-authored |
 | cheaper form of the `_kernel` intrusion | PySCF's `check_convergence` hook, which `soscf` already honours and `_kernel` does not (G3) |
 | GPU budget | 2 measurement pods (M1, M2) + 1 g4psrc re-validation before the issue; 1 g4psrc per later rebase or stack member |
 | fallback if declined | ask for two seams only (`check_convergence` parity, the `uwe_kernel` keyword) and ship the rest as a fork package |
@@ -44,9 +46,9 @@ Ranked by how likely the objection is to block, then by how costly it is to answ
 | # | likely objection | answered by | gap |
 |---|---|---|---|
 | 1 | **"Your tests will fail on our 2×T4 runner."** `check_supported` raises `NotImplementedError` when `num_devices > 1`; neither test file imports `num_devices` or skips, and the whole suite runs on the 2T4 job | nothing | **Hard CI red on every PR. Most of the tests (49 at r3, 50 since r4; every one that runs an SCF with a policy) would error there (estimate; exact count needs a 2-GPU host).** Fix: G1 below |
-| 2 | **Maintenance burden**: +3054/−39 over ten files at r5 (+2931/−39 over nine before the review), two new ~950-line modules, NVRTC C++ in a `.py`, hooks in `scf/hf.py` (`_kernel` and `scf()`), `df_jk.get_veff`/`get_jk`, `rks.get_veff`, `numint` | PR_BODY "Default-off guarantee" + `test_both_components_off_is_stock`; r3, r4 and r5 regression 44 passed + 1 skipped on both trees; the split in §3 (first PR +1033/−17, six files, at r5) | No external PR of this size has landed (table above). The `_kernel` intrusion (13 added lines) has a cheaper form: G3 |
+| 2 | **Maintenance burden**: +3054/−39 over ten files at r5 and r6 (+2931/−39 over nine before the review), two new ~950-line modules, NVRTC C++ in a `.py`, hooks in `scf/hf.py` (`_kernel` and `scf()`), `df_jk.get_veff`/`get_jk`, `rks.get_veff`, `numint` | PR_BODY "Default-off guarantee" + `test_both_components_off_is_stock`; r3–r6 regression 44 passed + 1 skipped on both trees; the split in §3 (first PR +1033/−17, six files, at r5 and r6) | No external PR of this size has landed (table above). The `_kernel` intrusion (13 added lines) has a cheaper form: G3 |
 | 3 | **"Does it pay at the library defaults?"** Measured with `grids.prune = None`, `ao_cache_fp64=True`, B3LYP `xc_switch_tol=3e-4`, cuTENSOR 2.3.1 | Disclosed in both texts and CLAIMS "configuration" table; "expect smaller gains on pruned grids. How much smaller is not measured" | **No number at defaults.** Also no quotable PRO 6000 figure for the FP32 switch *without* the cache (CLAIMS C3: the PRO 6000 precision effect exists only on CONTENTION-UNKNOWN C0 and is not claimed); the only clean no-cache reading is the L40S precision effect 1.655 / 1.463 / 2.981. Fix: M1 |
-| 4 | **Tests on a V100**: 129.0 s for the 49 tests at r3 on a PRO 6000 (r3 `new_tests.wall_s`; 50 tests at r4, 133 s on the V100; 56 tests at r5, 136 s on the V100), unpruned level-3 grids, paracetamol def2-mTZVPP, `conv_tol=1e-10`; the NVRTC kernels have never been compiled for sm_70; the 16 GB T4 | sm_70: no `__CUDA_ARCH__` branching, intrinsics are `__fadd_rn/__fsub_rn/__fmul_rn/__syncthreads/__longlong_as_double` only (CHECKLIST §3); AO-cache tests fit the budget by construction (tier chosen before allocation) | **V100/T4 runtime and sm_70 compile unmeasured.** Fix: M2 (only if a V100/T4-class pod exists) or G1's skip plus a note |
+| 4 | **Tests on a V100**: 129.0 s for the 49 tests at r3 on a PRO 6000 (r3 `new_tests.wall_s`; 50 tests at r4, 133 s on the V100; 56 tests at r5, 136 s on the V100; 132 s at r6), unpruned level-3 grids, paracetamol def2-mTZVPP, `conv_tol=1e-10`; the NVRTC kernels have never been compiled for sm_70; the 16 GB T4 | sm_70: no `__CUDA_ARCH__` branching, intrinsics are `__fadd_rn/__fsub_rn/__fmul_rn/__syncthreads/__longlong_as_double` only (CHECKLIST §3); AO-cache tests fit the budget by construction (tier chosen before allocation) | **V100/T4 runtime and sm_70 compile unmeasured.** Fix: M2 (only if a V100/T4-class pod exists) or G1's skip plus a note |
 | 5 | **FP64-strong cards are slower and nothing warns** | CLAIMS C3 (H100 wB97M-V 0.577–0.615; A100 11 of 12 clean cells neutral or slower); both texts say so; question 2 asks | Precedent for *warning* exists (`ris.py:894`). Compute capability alone cannot separate A100 (8.0) from L40S (8.9); a (major, minor) list is a heuristic. Fix: G4, only if asked |
 | 6 | **One card family for the headline** (PRO 6000 Workstation; L12 is one pod, replicates DEGRADED) | CLAIMS C1 replication note (+0.05–0.09 on clean cells), C3 (L40S, H100, A100), "Not transferable" | Accept; say "one card family" in the issue's first table caption (E6) |
 | 7 | **cuTENSOR vs cupy** | Campaign: cuTENSOR 2.3.1 gated on every pod (speed + accuracy). g4psrc r1–r3: contraction engine **cupy** (VALIDATION-g4psrc.md), so correctness holds on both engines. Upstream CI installs cutensor 2.2.0 | Speed without cuTENSOR unmeasured; a one-line disclosure (E4) is enough |
@@ -82,24 +84,24 @@ one g4psrc per later rebase or per stack member. Nothing else.
 
 Measured facts (throwaway worktree on `c1a6e37`, removed afterwards; re-tested on the r4 SHAs in a
 throwaway clone after the tests-only change, same outcome on every row). The table now gives the
-r5 commits on `e1020c3` (numstat from `git show --numstat`); the two applicability facts were
-re-checked on them with `git merge-tree` (no worktree): `5e81866` onto `9b129af` without
-`301cfe9` conflicts, in `mixed_precision.py` only.
+r6 commits on `38df3b7` (numstat from `git show --numstat`, identical to r5's on `e1020c3`); the
+two applicability facts were re-checked on them with `git merge-tree` (no worktree): `124ee0b` onto
+`85a7395` without `1348d50` conflicts, in `mixed_precision.py` only.
 
 | commit | content | numstat | files | tests | applies standalone on master? |
 |---|---|---|---|---|---|
-| `9b129af` | XC + K + convergence contract | +1033 / −17 | `df/df_jk.py`, `dft/mixed_precision.py`, `dft/rks.py`, `dft/tests/test_mixed_precision.py`, `scf/hf.py`, `scf/soscf.py` (+6, the newton refusal) | 27 (26 `KnownValues` + `MultiGPU`) | **yes** (its parent is master `e1020c3`) |
-| `301cfe9` | VV10 component | +1554 / −81 | adds `dft/vv10_mixed.py`, `dft/tests/test_mixed_precision_vv10.py`; edits `numint.py` (+29/−20), `mixed_precision.py`, `df_jk.py`, `rks.py`, `hf.py` (+11/−2) | 18 | on `9b129af`: **yes** |
-| `5e81866` | FP64 AO cache | +560 / −39 | `mixed_precision.py` (+362/−39), `df_jk.py` (+5), `rks.py` (+5), `test_mixed_precision.py` (+188) | 11 (`AOCache`) | on `9b129af` **without** `301cfe9`: **no** — conflicts, all in `mixed_precision.py` (7 hunks / 104 lines when measured on the pre-r4 SHA; not re-counted); on `9b129af`+`301cfe9`: yes |
-| `d642f3d` | docstring + README | +9 / −4 | `mixed_precision.py`, `README.md` | — | on the three above: yes (it is their child) |
+| `85a7395` | XC + K + convergence contract | +1033 / −17 | `df/df_jk.py`, `dft/mixed_precision.py`, `dft/rks.py`, `dft/tests/test_mixed_precision.py`, `scf/hf.py`, `scf/soscf.py` (+6, the newton refusal) | 27 (26 `KnownValues` + `MultiGPU`) | **yes** (its parent is master `38df3b7`) |
+| `1348d50` | VV10 component | +1554 / −81 | adds `dft/vv10_mixed.py`, `dft/tests/test_mixed_precision_vv10.py`; edits `numint.py` (+29/−20), `mixed_precision.py`, `df_jk.py`, `rks.py`, `hf.py` (+11/−2) | 18 | on `85a7395`: **yes** |
+| `124ee0b` | FP64 AO cache | +560 / −39 | `mixed_precision.py` (+362/−39), `df_jk.py` (+5), `rks.py` (+5), `test_mixed_precision.py` (+188) | 11 (`AOCache`) | on `85a7395` **without** `1348d50`: **no** — conflicts, all in `mixed_precision.py` (7 hunks / 104 lines when measured on the pre-r4 SHA; not re-counted); on `85a7395`+`1348d50`: yes |
+| `cb1a2d7` | docstring + README | +9 / −4 | `mixed_precision.py`, `README.md` | — | on the three above: yes (it is their child) |
 
 So the stack **a → c → b** (XC+K, VV10, cache) replays cleanly; **a → b** needs the cache commit
-re-authored on `9b129af` (estimate: an hour of merge work in one file; the tests do not conflict).
+re-authored on `85a7395` (estimate: an hour of merge work in one file; the tests do not conflict).
 
 | option | PRs | g4psrc gate set per PR | for | against |
 |---|---|---|---|---|
 | **One PR** | the four commits, +3054/−39, ten files, 56 tests | r4's gates as they are (one pod per rebase) | one review, one re-validation loop, evidence maps onto the PR as written | largest external PR in the sample by a wide margin; review stalls on the NVRTC module block the XC+K core; CI red from G1 hits all of it at once |
-| **Stack of three** | (a) `9b129af` (+ the docstring/README parts of `d642f3d` that concern it); (b) `5e81866` re-authored on (a); (c) `301cfe9` | (a): G1–G5 as now, G6 = `test_mixed_precision.py::KnownValues` 26/26 + `MultiGPU` 1/1, G8 = trio × {r2SCAN, B3LYP} 6 cells, `|ΔE| ≤ 1e-8`, cycles ±1, FP64 tail, real FP32, no cache or VV10 gates. (b): + `AOCache` 11/11, cache-tier gates on the 6 cells. (c): + VV10 18/18, G7 identity, trio wB97M-V 3 cells with the certificate | each PR is reviewable in one sitting; (a) contains the only two intrusions a maintainer must think hard about (`_kernel`, `get_jk`); the two follow-ups wait for (a) to merge, so their rebases are cheap | three re-validation loops (one pod each, serialised); (a) alone has only PREREG-9's no-cache and library-default trio figures as PRO 6000 speed evidence (the 24-molecule headline 1.657/1.783 needs the cache); (b) must be re-authored, so its validated SHA changes |
+| **Stack of three** | (a) `85a7395` (+ the docstring/README parts of `cb1a2d7` that concern it); (b) `124ee0b` re-authored on (a); (c) `1348d50` | (a): G1–G5 as now, G6 = `test_mixed_precision.py::KnownValues` 26/26 + `MultiGPU` 1/1, G8 = trio × {r2SCAN, B3LYP} 6 cells, `|ΔE| ≤ 1e-8`, cycles ±1, FP64 tail, real FP32, no cache or VV10 gates. (b): + `AOCache` 11/11, cache-tier gates on the 6 cells. (c): + VV10 18/18, G7 identity, trio wB97M-V 3 cells with the certificate | each PR is reviewable in one sitting; (a) contains the only two intrusions a maintainer must think hard about (`_kernel`, `get_jk`); the two follow-ups wait for (a) to merge, so their rebases are cheap | three re-validation loops (one pod each, serialised); (a) alone has only PREREG-9's no-cache and library-default trio figures as PRO 6000 speed evidence (the 24-molecule headline 1.657/1.783 needs the cache); (b) must be re-authored, so its validated SHA changes |
 | Stack in commit order (a → c → b) | same commits, no re-authoring | as above with (b) and (c) swapped | zero conflicts; (c) is the component with the largest gain (2.914) | puts the NVRTC module second and the small, bitwise-tested cache last, the reverse of what Q3 in the issue proposes |
 
 **Recommendation: the stack of three, (a) first, with (b) and (c) ordered by the maintainers'
@@ -313,3 +315,17 @@ branch must be rebuilt and pushed (CHECKLIST §5). The texts also now carry the 
 pod D1's accuracy cells (CLAIMS C4), the MODEL-MISS labels on XL B3LYP and the H100 readings, and
 no longer state a cause for B3LYP's size dependence that CLAIMS C2 leaves unexplained. Upstream
 master re-checked the same day: still `e1020c3`.
+
+## Status note (2026-10-13, after g4psrc r6)
+
+**r6 is done.** Upstream master moved one commit, to `38df3b7` (#950, "Actual SAD guess", which
+edits `scf/hf.py`, a file the branch also edits). The code branch was rebased onto it with no
+conflicts and is at `cb1a2d7` (`85a7395`, `1348d50`, `124ee0b`, `cb1a2d7`); its own added and
+removed lines are identical to `d642f3da`'s, so the diff is still +3054/−39 over ten files with 56
+new tests, and upstream's `requirements.txt` and `unittest.yml` pins are unchanged. g4psrc r6 passed
+on all three profiles: `pro6000-lock` (run `38333841493`), `v100-ci` (`38335226746`) and
+`pro6000-pyscf28` (`38336271676`) (`validation/VALIDATION-g4psrc.md`, `g4psrc_r6_*.json`). The r5
+head is kept on the fork as `mixed-precision-upstream-on-e1020c3`. The texts and `verify_rfc.py`
+now cite r6. The engine-repo plan and result are on engine PR #248, open and not merged. Remaining
+before posting: CHECKLIST §1's last re-check (`38df3b7..upstream/master`), §5 (including the
+evidence-branch rebuild on `38df3b7`), and §6.

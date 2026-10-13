@@ -95,11 +95,11 @@ fresh stock SCF and gradient there; warm-step SCFs run 1.41–1.44 and whole opt
 from an arm whose fork-only warm-start rule, not proposed, never fired; the plain arm paid the driver JIT in one cell
 and reads 1.16 and 1.27 where valid).
 
-Correctness of the branch itself (`d642f3d` on `e1020c3`, built from source on a Blackwell card at pinned versions,
+Correctness of the branch itself (`cb1a2d7` on `38df3b7`, built from source on a Blackwell card at pinned versions,
 under pyscf 2.8, and on a V100 with the single-GPU CI package set, libxc 0.9.0): upstream `test_df_rks`, `test_df_jk`,
 `test_rks` and `test_scf` give 44 passed and 1 skipped on master and on the branch in all three profiles, the 56 new
 tests pass, and stock vs mixed on three molecules agree to |ΔE| ≤ 5.9e-12 Ha with identical cycles. CI fit: the 56
-tests take 136 s on the V100 and the slowest 18.4 s, so none needs the `slow` mark; every class that runs an SCF with
+tests take 132 s on the V100 and the slowest 18.5 s, so none needs the `slow` mark; every class that runs an SCF with
 a policy skips on `num_devices > 1`, as upstream's do, so on the 2×T4 runner only the multi-GPU refusal test (patched
 device count) runs; the VV10 NVRTC kernels were validated on sm_70 under CUDA 12, and CUDA 11 was not tested.
 
@@ -133,7 +133,7 @@ device count) runs; the VV10 NVRTC kernels were validated on sm_70 under CUDA 12
 
 ## Links
 
-- Code: [`chris-lee-mc/gpu4pyscf@mixed-precision-upstream`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream), head `d642f3da`, four commits on master `e1020c3`, +3054/−39 over ten files.
+- Code: [`chris-lee-mc/gpu4pyscf@mixed-precision-upstream`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream), head `cb1a2d78`, four commits on master `38df3b7`, +3054/−39 over ten files.
 - Evidence: [`chris-lee-mc/gpu4pyscf@mixed-precision-evidence`, `benchmarks/mixed_precision/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-evidence/benchmarks/mixed_precision):
   `native/verify_native.py` recomputes every figure above from the per-run data, `native/CLAIMS.md` states what the data do and do not support, and `validation/` holds the GPU validation records.
 - A PR is drafted. We know v1.9.0 is in flight (#944) and that `numint` and `df_jk` have moved recently (e.g. #955),

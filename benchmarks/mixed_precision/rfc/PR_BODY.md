@@ -36,8 +36,8 @@ and the code does not detect that device class; see Limitations.
 
 ## Reviewer's guide
 
-Read in this order. Diff: +3054 / −39 over ten files in four commits (`9b129af` XC + K, `301cfe9`
-VV10, `5e81866` AO cache, `d642f3d` docstring and README), of which +2115 / −39 is code outside the
+Read in this order. Diff: +3054 / −39 over ten files in four commits (`85a7395` XC + K, `1348d50`
+VV10, `124ee0b` AO cache, `cb1a2d7` docstring and README), of which +2115 / −39 is code outside the
 tests and README.
 
 | order | file | what it does |
@@ -165,24 +165,24 @@ default `conv_tol_grad`. The library defaults were measured separately on three 
   empty-block refusal, opt-in default); the VV10 kernels per point against stock `_vv10nlc`, the
   df64 tail, the certificate (including a perturbed result that must fail it), an SCF that raises,
   and the all-off policy.
-- **GPU validation of this branch (`d642f3d`) on master `e1020c3`** (`g4psrc r5`, three profiles;
+- **GPU validation of this branch (`cb1a2d7`) on master `38df3b7`** (`g4psrc r6`, three profiles;
   gpu4pyscf built from source each time, the released wheel removed, each tree importing itself):
-  - **`pro6000-lock`** (engine-repo run `38198811227`; sm_120, one RTX PRO 6000 Blackwell, the
+  - **`pro6000-lock`** (engine-repo run `38333841493`; sm_120, one RTX PRO 6000 Blackwell, the
     validation lock's pins): upstream `df/tests/test_df_rks.py`, `df/tests/test_df_jk.py`,
     `dft/tests/test_rks.py`, `scf/tests/test_scf.py` give **44 passed, 1 skipped on master, and
     the same on this branch**; the new tests **56/56**; the VV10 kernels bitwise identical on the
     GPU to their NumPy emulations; stock vs mixed on paracetamol, propranolol and celecoxib
     **\|ΔE\| ≤ 5.9e-12 Ha with identical cycle counts**, an FP64 tail in every run and the VV10
     certificate in band in all three wB97M-V runs;
-  - **`pro6000-pyscf28`** (run `38201109296`; the same card, upstream's `requirements.txt` then
+  - **`pro6000-pyscf28`** (run `38336271676`; the same card, upstream's `requirements.txt` then
     **pyscf 2.8**, the multi-GPU CI job's pin): the same gates, 44 passed + 1 skipped on both trees,
-    56/56 in 123 s, **\|ΔE\| ≤ 5.0e-12 Ha** with identical cycle counts;
-  - **`v100-ci`** (run `38200149447`; **one Tesla V100, sm_70**, built from source for sm_70,
+    56/56 in 123 s, **\|ΔE\| ≤ 4.1e-12 Ha** with identical cycle counts;
+  - **`v100-ci`** (run `38335226746`; **one Tesla V100, sm_70**, built from source for sm_70,
     upstream's `requirements.txt` then **libxc 0.9.0**, the single-GPU CI job's set): regression
-    files (44 passed + 1 skipped on both trees), new tests (**56/56 in 136 s**) and VV10 bitwise
+    files (44 passed + 1 skipped on both trees), new tests (**56/56 in 132 s**) and VV10 bitwise
     identity pass; the three-molecule comparison was not run there (its bands are banked on the
     PRO 6000).
-- Earlier validations (r1–r4 on earlier heads and master commits, and the same code overlaid on the v1.8.1
+- Earlier validations (r1–r5 on earlier heads and master commits, and the same code overlaid on the v1.8.1
   wheel; `benchmarks/mixed_precision/validation/`) passed the same gates. A multi-GPU host, scipy
   1.17 and upstream's full suite were not run.
 
@@ -194,8 +194,8 @@ default `conv_tol_grad`. The library defaults were measured separately on three 
   patched device count, so it runs on any host.
 - **V100 job.** sm_70 needs nothing special: the VV10 kernels are NVRTC `cupy.RawModule`s with
   `--std=c++14` and no `__CUDA_ARCH__` branching (intrinsics `__fadd_rn`, `__fsub_rn`,
-  `__fmul_rn`, `__syncthreads`, `__longlong_as_double`). On one V100 the 56 tests take 136 s
-  serially, the slowest 18.4 s (`test_vv10_paracetamol`) and 16.9 s
+  `__fmul_rn`, `__syncthreads`, `__longlong_as_double`). On one V100 the 56 tests take 132 s
+  serially, the slowest 18.5 s (`test_vv10_paracetamol`) and 16.8 s
   (`test_kernels_against_stock_vv10nlc`), both VV10; the rest are under 11 s each. The XC/K tests
   all run paracetamol def2-mTZVPP on an unpruned level-3 grid with `conv_tol = 1e-10`; only the
   tests that assert the FP32-phase length need that, and the others could move to the default

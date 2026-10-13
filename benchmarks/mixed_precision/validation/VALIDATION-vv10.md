@@ -46,6 +46,7 @@ measurement is in `../data/vv10_wb97mv_pro6000.csv` (2.635× on celecoxib).
 validated separately, built from source for sm_120 (engine-repo run `38017282503`, g4psrc r3; see
 `VALIDATION-g4psrc.md`):
 the VV10 launchers are bitwise identical to the emulation, and the three wB97M-V trio cells pass
-with the VV10 certificate in band. See `VALIDATION-g4psrc.md`. The current head, `d642f3da` on
-`e1020c3`, passed the same VV10 gates in g4psrc r5 (runs `38198811227`, `38201109296`, and
-`38200149447` on sm_70, where the trio is not run); `VALIDATION-g4psrc.md` has the record.
+with the VV10 certificate in band. See `VALIDATION-g4psrc.md`. The current head, `cb1a2d78` on
+`38df3b7`, passed the same VV10 gates in g4psrc r6 (runs `38333841493`, `38336271676`, and
+`38335226746` on sm_70, where the trio is not run), as the previous head `d642f3da` on `e1020c3`
+did in r5; `VALIDATION-g4psrc.md` has the record.

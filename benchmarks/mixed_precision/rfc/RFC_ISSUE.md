@@ -16,7 +16,7 @@ the result must still be an FP64 SCF, with stock convergence and stock gradients
 We have an implementation on a fork and would like to know whether the maintainers want it, and
 in what shape, before opening a PR. The code is
 [`chris-lee-mc/gpu4pyscf@mixed-precision-upstream`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream)
-(four commits on master `e1020c3`; +3054/−39 over ten files, of which the first PR we would
+(four commits on master `38df3b7`; +3054/−39 over ten files, of which the first PR we would
 propose is +1033/−17 over six). The evidence package is
 [`chris-lee-mc/gpu4pyscf@mixed-precision-evidence`, `benchmarks/mixed_precision/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-evidence/benchmarks/mixed_precision)
 (upstream master plus that directory): its `native/verify_native.py` recomputes every benchmark
@@ -56,7 +56,7 @@ UKS/ROKS/GKS and spin ≠ 0; multi-GPU; the second-order solver (`mf.newton()`);
 range-separated and NLC functionals; `k` without density fitting or on a functional without exact
 exchange; with `vv10`, a functional without exactly one VV10 term. The 56 tests are unmarked, skip
 on multi-GPU hosts (`num_devices > 1`, upstream's pattern; the refusal is tested with a patched
-device count), and pass on a V100 with upstream's single-GPU CI package set (libxc 0.9.0, 136 s)
+device count), and pass on a V100 with upstream's single-GPU CI package set (libxc 0.9.0, 132 s)
 and under pyscf 2.8.
 
 ## How precision is controlled
@@ -169,11 +169,11 @@ not proposed; it never fired, so that arm's steps and cycles equal the plain arm
 plain arm's first SCF paid the driver JIT in one cell. Where the plain arm is valid it reads 1.16
 (paracetamol B3LYP) and 1.27 (celecoxib r2SCAN).
 
-**Correctness of the master-based branch** (fork `d642f3d` on `e1020c3`, built from source, three
+**Correctness of the master-based branch** (fork `cb1a2d7` on `38df3b7`, built from source, three
 profiles; `validation/` in the package): upstream `test_df_rks`, `test_df_jk`, `test_rks` and
 `test_scf` give 44 passed and 1 skipped on master and the same on the branch, at the lock's pins,
 under pyscf 2.8 and on the V100; the 56 new tests pass on all three profiles; stock vs mixed on
-three molecules agrees to \|ΔE\| ≤ 5.9e-12 Ha (5.0e-12 Ha under pyscf 2.8) with identical cycle
+three molecules agrees to \|ΔE\| ≤ 5.9e-12 Ha (4.1e-12 Ha under pyscf 2.8) with identical cycle
 counts.
 
 ## What is not claimed

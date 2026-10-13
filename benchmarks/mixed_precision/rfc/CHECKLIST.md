@@ -3,17 +3,18 @@
 For the person who will post. Nothing in this directory has been posted. The order matters:
 **the issue first, the PR only after the maintainers have answered.**
 
-State of play (updated 2026-10-12):
+State of play (updated 2026-10-13):
 
 | item | value |
 |---|---|
-| code branch | `chris-lee-mc/gpu4pyscf@mixed-precision-upstream`, head `d642f3da971650d24dc147e212ce932d03757811`, four commits (`9b129af` XC + K, `301cfe9` VV10, `5e81866` AO cache, `d642f3d` docstring and README; +3054/−39 over ten files) on upstream master `e1020c32ae789cd8218c333e1ee2fc74348a9841` |
-| review fixes on the code branch (validated by r5) | copyright `2026` on the four new files; `mf.newton()` with a policy set refuses (`NotImplementedError`, `scf/soscf.py`); `k=True` on a functional without exact exchange refuses (was a silent no-op); `mf.mixed_precision_record` defaults to `None`; with `xc` and `k` both on, K is held at FP64 whenever XC falls back to FP64; six new tests (56 in all: 38 + 18) |
+| code branch | `chris-lee-mc/gpu4pyscf@mixed-precision-upstream`, head `cb1a2d7817422a9136c502dab9419f4c1ead10b2`, four commits (`85a7395` XC + K, `1348d50` VV10, `124ee0b` AO cache, `cb1a2d7` docstring and README; +3054/−39 over ten files) on upstream master `38df3b74dc67658e79e3e442cf95f177ab00f2bf`. Rebased with no conflicts from `d642f3da` on `e1020c3`; the branch's own added and removed lines are identical to `d642f3da`'s |
+| review fixes on the code branch (validated by r5, and by r6 after the rebase) | copyright `2026` on the four new files; `mf.newton()` with a policy set refuses (`NotImplementedError`, `scf/soscf.py`); `k=True` on a functional without exact exchange refuses (was a silent no-op); `mf.mixed_precision_record` defaults to `None`; with `xc` and `k` both on, K is held at FP64 whenever XC falls back to FP64; six new tests (56 in all: 38 + 18) |
 | evidence package (staging) | `chris-lee-mc/gpu4pyscf@mixed-precision-rfc-package-v2`, `benchmarks/mixed_precision/`, with `rfc/` (this directory). Not linked from the texts |
-| evidence branch (the one the issue links) | `chris-lee-mc/gpu4pyscf@mixed-precision-evidence`: upstream `e1020c3` plus `benchmarks/mixed_precision/` without `rfc/` and `PR_DESCRIPTION.md`, built by `rfc/make_evidence_branch.sh`. **The pushed `798714d` (built from `3e8c5f7`) carries none of the 56 `*.csv` files** (upstream's `.gitignore` dropped them; the script now forces the add and checks the committed tree) and must be rebuilt and force-pushed before posting (§5) |
-| upstream master | `e1020c3`, re-checked with `git ls-remote` on 2026-10-12 after r5: unchanged |
-| last GPU validation of the code branch | g4psrc r5, engine-repo runs `38198811227` (`pro6000-lock`), `38201109296` (`pro6000-pyscf28`) and `38200149447` (`v100-ci`), on master `e1020c3`, from source for sm_120 and sm_70: PASS (`validation/VALIDATION-g4psrc.md`, `g4psrc_r5_*.json`). The pre-review head `3d9de5d` passed run `38194143624` and is superseded |
-| earlier heads, kept as branches | `mixed-precision-upstream-on-e1020c3-prereview` (`3d9de5d`), `mixed-precision-upstream-on-c1a6e37-r4` (r4, `4d2f3de`), `mixed-precision-upstream-on-c1a6e37` (r3, `ac4c668e`), `mixed-precision-upstream-on-82bc702` (r2), `mixed-precision-upstream-on-eef5f5b` (r1) |
+| evidence branch (the one the issue links) | `chris-lee-mc/gpu4pyscf@mixed-precision-evidence`: upstream `38df3b7` (at the next rebuild) plus `benchmarks/mixed_precision/` without `rfc/` and `PR_DESCRIPTION.md`, built by `rfc/make_evidence_branch.sh`. **The pushed `798714d` (built from `3e8c5f7`) carries none of the 56 `*.csv` files** (upstream's `.gitignore` dropped them; the script now forces the add and checks the committed tree) and must be rebuilt and force-pushed before posting (§5) |
+| upstream master | `38df3b7` (#950, "Actual SAD guess", one commit past r5's base `e1020c3`; it edits `scf/hf.py`, which the branch also edits, with no conflict), re-checked with `git ls-remote` on 2026-10-13 after r6: unchanged |
+| last GPU validation of the code branch | g4psrc r6, engine-repo runs `38333841493` (`pro6000-lock`), `38335226746` (`v100-ci`) and `38336271676` (`pro6000-pyscf28`), on master `38df3b7`, from source for sm_120 and sm_70: PASS (`validation/VALIDATION-g4psrc.md`, `g4psrc_r6_*.json`). r5 (`d642f3da` on `e1020c3`; runs `38198811227`, `38201109296`, `38200149447`) is kept as history; the pre-review head `3d9de5d` passed run `38194143624` and is superseded |
+| engine-repo record of r6 | `docs/upstream/PORT-PLAN-upstream-source-build.md`, "Re-validation r6" and "r6 RESULT", on engine PR #248 (head `b73f1b3d`): **open, not merged** at the time of writing. Check it has merged before posting |
+| earlier heads, kept as branches | `mixed-precision-upstream-on-e1020c3` (r5, `d642f3da`), `mixed-precision-upstream-on-e1020c3-prereview` (`3d9de5d`), `mixed-precision-upstream-on-c1a6e37-r4` (r4, `4d2f3de`), `mixed-precision-upstream-on-c1a6e37` (r3, `ac4c668e`), `mixed-precision-upstream-on-82bc702` (r2), `mixed-precision-upstream-on-eef5f5b` (r1) |
 
 ## 1. Base: re-verify, rebase if needed, re-validate
 
@@ -42,9 +43,26 @@ State of play (updated 2026-10-12):
       run `38194143624` (`3d9de5d`) is recorded as such. `validation/g4psrc_r5_*.json` added;
       `PR_BODY.md`, `RFC_ISSUE.md` and `verify_rfc.py` cite r5.
 - [x] Re-checked on 2026-10-12 after r5 and the second review: `git ls-remote
-      https://github.com/pyscf/gpu4pyscf.git refs/heads/master` still returns `e1020c3`.
-- [ ] Immediately before posting: `git fetch upstream && git log --oneline e1020c3..upstream/master`
-      (this was `c1a6e37..upstream/master` before r5). If the list is non-empty, rebase again,
+      https://github.com/pyscf/gpu4pyscf.git refs/heads/master` still returned `e1020c3`.
+- [x] Base re-verified on 2026-10-13: upstream master had moved to `38df3b7` (#950, "Actual SAD
+      guess", which edits `scf/hf.py`, `df/df.py` and `lib/cupy_helper.py` and adds
+      `scf/tests/test_init_guess.py`). Rebased onto it with no conflicts (head `cb1a2d7`; the
+      branch's own added and removed lines are identical to `d642f3da`'s, +3054/−39 over ten files,
+      56 new tests; upstream's `requirements.txt` and `unittest.yml` pins unchanged). The r5 head is
+      kept as `mixed-precision-upstream-on-e1020c3`.
+- [x] Re-validated as g4psrc r6 on three profiles: `pro6000-lock` (run `38333841493`,
+      `RUN_ID=38333841493-1-d35ca7a0`: G1–G8, 44 passed + 1 skipped on both trees, 56/56 in 123 s,
+      trio \|ΔE\| ≤ 5.9e-12 Ha with identical cycles, VV10 certificate ok ×3), `v100-ci` (run
+      `38335226746`: V100-SXM2, sm_70, libxc 0.9.0, G1–G7, G8 skipped by profile; 44 passed + 1
+      skipped on both trees, 56/56 in 132 s, slowest 18.5 s then 16.8 s) and `pro6000-pyscf28` (run
+      `38336271676`: pyscf 2.8.0, G1–G8, 44 passed + 1 skipped on both trees, 56/56 in 123 s,
+      \|ΔE\| ≤ 4.1e-12 Ha). `validation/g4psrc_r6_*.json` added; `RFC_ISSUE.md`,
+      `ISSUE_DRAFT.md`, `PR_BODY.md` and `verify_rfc.py` cite r6. The plan and result are on
+      engine PR #248, which is **open, not merged**.
+- [x] Re-checked on 2026-10-13 after r6: `git ls-remote https://github.com/pyscf/gpu4pyscf.git
+      refs/heads/master` returns `38df3b7`.
+- [ ] Immediately before posting: `git fetch upstream && git log --oneline 38df3b7..upstream/master`
+      (this was `e1020c3..upstream/master` before r6, and `c1a6e37..upstream/master` before r5). If the list is non-empty, rebase again,
       re-run g4psrc (the engine repo pins `BASE_SHA` in `.github/scripts/runpod_g4psrc.py`, with a
       dated section in the port plan before dispatch),
       update the run id, base and numbers in `PR_BODY.md` and `RFC_ISSUE.md`, add them to
@@ -64,7 +82,8 @@ flake8 --config .flake8 gpu4pyscf
 - [x] All three clean on the whole `gpu4pyscf` tree at `ac4c668e` (ruff 0.15, flake8 7.3.0), and
       again at `4d2f3de4` after the tests-only change (ruff 0.15.0, flake8 7.3.0, from a
       `git archive` of that commit), and at `d642f3da` after the review fixes (ruff 0.15.0,
-      flake8 7.4.1, from a `git archive` of that commit).
+      flake8 7.4.1, from a `git archive` of that commit). After the rebase to `cb1a2d7`, upstream's
+      `lint.yml` steps pass on CPU (engine port plan, "Re-validation r6").
 - [ ] Re-run if the branch changes again.
 
 ## 3. Licence headers and CLA
@@ -98,12 +117,12 @@ flake8 --config .flake8 gpu4pyscf
 - [x] PREREG-10's status line and the omeprazole B3LYP S−R range were corrected in the engine repo
       by Erratum 1 (`c56a3c30`, before merge) and re-mirrored here.
 - [x] Engine PR #247 (PREREG-10) merged (`ef023eea`); the mirror is byte-identical to `main`.
-- [x] The `mixed_precision.py` docstring (amended into the fourth commit, then `4d2f3de4`, now
-      `d642f3d`) now gives CLAIMS C3's figures (wB97M-V 1.6–2× slower; H100 B3LYP neutral to about 1.1× slower; A100
+- [x] The `mixed_precision.py` docstring (amended into the fourth commit, then `4d2f3de4`, then
+      `d642f3d`, now `cb1a2d7`) now gives CLAIMS C3's figures (wB97M-V 1.6–2× slower; H100 B3LYP neutral to about 1.1× slower; A100
       11 of 12 clean cells neutral or slower), and says K is held to XC's switch only when `xc` and
       `k` are both on.
 - [ ] The usage snippet in that docstring uses `gpu4pyscf.dft.RKS` (a factory function in
-      `gpu4pyscf/dft/__init__.py` on `c1a6e37` and `e1020c3`); the tests and `rfc/` use
+      `gpu4pyscf/dft/__init__.py` on `c1a6e37`, `e1020c3` and `38df3b7`, which #950 does not touch); the tests and `rfc/` use
       `gpu4pyscf.dft.rks.RKS`. Both resolve; no action unless the rebase changes `dft/__init__.py`.
 - [x] PREREG-9's status line: corrected in the engine repo by Erratum 1 (PR #246) and re-mirrored.
 - [x] `test_nr_coach` under libxc 0.9.0: the "unrelated to this change" note was dropped from
@@ -162,7 +181,7 @@ flake8 --config .flake8 gpu4pyscf
       of the package branch with the change committed:
 
       ```
-      benchmarks/mixed_precision/rfc/make_evidence_branch.sh e1020c32ae789cd8218c333e1ee2fc74348a9841
+      benchmarks/mixed_precision/rfc/make_evidence_branch.sh 38df3b74dc67658e79e3e442cf95f177ab00f2bf
       git push -f origin mixed-precision-evidence
       ```
 
@@ -198,7 +217,7 @@ flake8 --config .flake8 gpu4pyscf
       the body of `PR_BODY.md`, `#<issue>` filled in, and the HTML comment removed. Upstream has no
       PR template. The code branch contains only the ten files in the reviewer's guide; the
       evidence package stays on the fork's package branch and is linked, not included.
-- [ ] If the maintainers asked for XC + K only, drop the VV10 commit (`301cfe9`) and the AO-cache
-      commit (`5e81866`) from the PR branch, remove the VV10 section and the AO-cache rows from
+- [ ] If the maintainers asked for XC + K only, drop the VV10 commit (`1348d50`) and the AO-cache
+      commit (`124ee0b`) from the PR branch, remove the VV10 section and the AO-cache rows from
       `PR_BODY.md`, and re-run `verify_rfc.py` (its `BOUND` table will then need the VV10 and
       cache entries removed, which is deliberate: every edit to a number goes through the checker).
