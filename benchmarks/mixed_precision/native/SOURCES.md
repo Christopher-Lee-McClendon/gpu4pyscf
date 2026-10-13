@@ -23,8 +23,7 @@ a one-line redaction of an AI model's name; no number changes), PREREG-4's errat
 PREREG-9 with its RESULT (PR #243) and its status-line Erratum 1 (PR #246), all merged into that repository's `main`. PREREG-9's protocol
 text above the RESULT is byte-identical in `e1cc2bb5`, the commit both of its pods ran, which `main`
 keeps in its history (merged, not rebased). PREREG-10, its RESULT and its Erratum 1 (status line; the omeprazole B3LYP S−R range) are mirrored
-from that repository's commit `c56a3c30` (on its PREREG-10 branch, PR #247, **not yet merged into
-`main`**); the protocol text above the RESULT is byte-identical in `16aa4e3a`, the commit its pod
+from that repository's commit `c56a3c30` (PR #247, merged into `main` as `ef023eea`, not rebased); the protocol text above the RESULT is byte-identical in `16aa4e3a`, the commit its pod
 ran.
 
 Fork under test: `chris-lee-mc/gpu4pyscf` at `63af0568d4fd19935bef51b7fd71f161a9cee56f`, overlaid

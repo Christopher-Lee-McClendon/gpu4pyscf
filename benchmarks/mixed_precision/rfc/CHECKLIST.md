@@ -97,7 +97,7 @@ flake8 --config .flake8 gpu4pyscf
       place of D1's UNQUOTABLE cells, and `verify_rfc.py` binds the new figures to N12.
 - [x] PREREG-10's status line and the omeprazole B3LYP S−R range were corrected in the engine repo
       by Erratum 1 (`c56a3c30`, before merge) and re-mirrored here.
-- [ ] Merge engine PR #247 (PREREG-10), then confirm the mirror is byte-identical to `main`.
+- [x] Engine PR #247 (PREREG-10) merged (`ef023eea`); the mirror is byte-identical to `main`.
 - [x] The `mixed_precision.py` docstring (amended into the fourth commit, then `4d2f3de4`, now
       `d642f3d`) now gives CLAIMS C3's figures (wB97M-V 1.6–2× slower; H100 B3LYP neutral to about 1.1× slower; A100
       11 of 12 clean cells neutral or slower), and says K is held to XC's switch only when `xc` and
