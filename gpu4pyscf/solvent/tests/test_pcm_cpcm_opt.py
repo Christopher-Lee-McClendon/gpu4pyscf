@@ -175,7 +175,8 @@ class KnownValues(unittest.TestCase):
         _, K = pcm.get_D_S(cm.surface, with_S=True, with_D=False)
         n = K.shape[0]
         rng = cupy.random.default_rng(13)
-        idx = rng.choice(n, size=max(1, n // 20), replace=False)
+        # cupy's Generator has no choice(): draw the indices on the host
+        idx = cupy.asarray(numpy.random.default_rng(13).choice(n, size=max(1, n // 20), replace=False))
         K[idx, idx] *= 1e9
         lu = lu_factor(K.copy())
         for b in (rng.standard_normal(n), rng.standard_normal((n, 2))):
