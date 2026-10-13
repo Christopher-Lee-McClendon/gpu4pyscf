@@ -555,12 +555,15 @@ def grad_qv(pcmobj, dm, q_sym = None):
 
     intopt = int3c1e.VHFOpt(mol)
     intopt.build(1e-14, aosym=False)
+    # PCM.grad_qv_fp32: the derivative integrals with FP32 Rys recursion and root sums, FP64 roots,
+    # geometry and accumulation (lib/gint/nr_fill_ao_int3c1e_ip_fp32.cu)
+    fp32 = bool(getattr(pcmobj, 'grad_qv_fp32', False))
     dvj = int1e_grids_ip1(mol, grid_coords, dm = dm, charges = q_sym,
                           direct_scf_tol = 1e-14, charge_exponents = charge_exp**2,
-                          intopt=intopt)
+                          intopt=intopt, fp32=fp32)
     dq  = int1e_grids_ip2(mol, grid_coords, dm = dm, charges = q_sym,
                           direct_scf_tol = 1e-14, charge_exponents = charge_exp**2,
-                          intopt=intopt)
+                          intopt=intopt, fp32=fp32)
 
     if pcmobj.frozen_dm0_for_finite_difference_without_response is not None:
         frozen_dm0 = pcmobj.frozen_dm0_for_finite_difference_without_response
@@ -568,10 +571,10 @@ def grad_qv(pcmobj, dm, q_sym = None):
         q_sym_left, _ = pcmobj._get_qsym(dm, with_nuc = True)
         dvj += int1e_grids_ip1(mol, grid_coords, dm = frozen_dm0, charges = q_sym_left,
                               direct_scf_tol = 1e-14, charge_exponents = charge_exp**2,
-                              intopt=intopt)
+                              intopt=intopt, fp32=fp32)
         dq  += int1e_grids_ip2(mol, grid_coords, dm = frozen_dm0, charges = q_sym_left,
                               direct_scf_tol = 1e-14, charge_exponents = charge_exp**2,
-                              intopt=intopt)
+                              intopt=intopt, fp32=fp32)
 
     aoslice = mol.aoslice_by_atom()
     dvj = 2.0 * cupy.asarray([cupy.sum(dvj[:,p0:p1], axis=1) for p0,p1 in aoslice[:,2:]])

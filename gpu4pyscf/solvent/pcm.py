@@ -563,7 +563,7 @@ class PCM(lib.StreamObject):
         'frozen_dm0_for_finite_difference_without_response',
         'equilibrium_solvation', 'e', 'v', 'v_grids_n',
         'lowmem_intermediate_storage', 'surface_discretization_method',
-        'cpcm_solver', 'grad_ds_fp32', 'esp_cache', 'esp_cache_memory_fraction',
+        'cpcm_solver', 'grad_ds_fp32', 'esp_cache', 'esp_cache_memory_fraction', 'grad_qv_fp32',
     }
 
     def __init__(self, mol):
@@ -596,6 +596,9 @@ class PCM(lib.StreamObject):
         # recorded, if it does not fit this fraction of the free memory.
         self.esp_cache = None
         self.esp_cache_memory_fraction = 0.5
+        # Gradient: the derivative surface integrals of grad_qv with FP32 Rys recursion and root sums
+        # (FP64 roots, geometry and accumulation). Any PCM model.
+        self.grad_qv_fp32 = False
 
         self.max_cycle = 20
         self.conv_tol = 1e-7
@@ -626,6 +629,8 @@ class PCM(lib.StreamObject):
             logger.info(self, 'grad_ds_fp32 = True')
         if getattr(self, 'esp_cache', None) is not None:
             logger.info(self, 'esp_cache = %s', self.esp_cache)
+        if getattr(self, 'grad_qv_fp32', False):
+            logger.info(self, 'grad_qv_fp32 = True')
         return self
 
     def build(self, ng=None):
