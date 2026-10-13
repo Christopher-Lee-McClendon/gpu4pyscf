@@ -163,6 +163,35 @@ class KnownValues(unittest.TestCase):
                 x = pcm.cpcm_solve(pcm.cpcm_factorize(K.copy(), solver), b)
                 _close(self, x, ref, 1e-11, f'solve {solver} {b.shape}')
 
+    def test_refinement_on_a_cavity_like_diagonal_spread(self):
+        '''PREREG-cpcm-speed-1 SB2: on drug-sized cavities a few points have a
+        nearly-zero switching function, so their diagonal of K is huge. An
+        unscaled stopping test was then vacuous (0 refinement iterations,
+        FP32-accurate charges). Reproduce the spread and require refinement
+        and per-element FP64 agreement with LU.'''
+        from cupyx.scipy.linalg import lu_factor
+        cm = _pcm()
+        cm.build()
+        _, K = pcm.get_D_S(cm.surface, with_S=True, with_D=False)
+        n = K.shape[0]
+        rng = cupy.random.default_rng(13)
+        idx = rng.choice(n, size=max(1, n // 20), replace=False)
+        K[idx, idx] *= 1e9
+        lu = lu_factor(K.copy())
+        for b in (rng.standard_normal(n), rng.standard_normal((n, 2))):
+            ref = lu_solve(lu, b)
+            it = pcm.cpcm_factorize(K.copy(), 'cholesky_ir')
+            x = pcm.cpcm_solve(it, b)
+            st = it['ir_stats']
+            self.assertIsNone(st['fp64_fallback'])
+            self.assertGreater(st['max_iters'], 0)
+            err = abs(x - ref)
+            bound = 1e-10 * abs(ref) + 1e-13 * float(abs(ref).max())
+            self.assertTrue(bool((err <= bound).all()),
+                            f'worst per-element error {float((err / (abs(ref) + 1e-300)).max()):.3e}')
+            self.assertAlmostEqual(float((b * x).sum()), float((b * ref).sum()),
+                                   delta=1e-12 * abs(float((b * ref).sum())))
+
     def test_refinement_fallback_when_not_converged(self):
         cm = _pcm()
         cm.build()
