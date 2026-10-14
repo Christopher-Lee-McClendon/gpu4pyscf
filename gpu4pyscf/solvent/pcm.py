@@ -32,7 +32,7 @@ from gpu4pyscf.gto import int3c1e
 from gpu4pyscf.gto.int3c1e import int1e_grids
 from gpu4pyscf.lib import logger
 from gpu4pyscf.lib.cupy_helper import dist_matrix, load_library
-from cupyx.scipy.linalg import lu_factor, lu_solve
+from cupyx.scipy.linalg import lu_factor, lu_solve, solve_triangular
 from cupyx.scipy.sparse.linalg import LinearOperator, gmres, minres
 
 libdft = lib.load_library('libdft')
@@ -459,6 +459,106 @@ def left_solve_K_SSVPE(surface, _intermediates, right_vector, conv_tol = 1e-10, 
     solution = solution.reshape(right_vector.shape)
     return solution
 
+CPCM_SOLVERS = ('lu', 'cholesky', 'cholesky_ir')
+# Iterative refinement of the FP32 Cholesky solve (cpcm_solver='cholesky_ir'):
+# LAPACK dsposv's stopping test and iteration cap.
+CPCM_IR_MAX_ITER = 30
+
+def check_cpcm_solver(pcmobj):
+    '''Validate pcmobj.cpcm_solver; return it. Anything but 'lu' needs a
+    C-PCM / COSMO model (K = S, symmetric positive definite) with the dense
+    intermediates.'''
+    solver = getattr(pcmobj, 'cpcm_solver', 'lu')
+    if solver not in CPCM_SOLVERS:
+        raise ValueError(f'cpcm_solver must be one of {CPCM_SOLVERS}, not {solver!r}')
+    if solver != 'lu':
+        if not pcmobj.if_method_in_CPCM_category:
+            raise NotImplementedError(
+                f'cpcm_solver={solver!r} needs a symmetric K: C-PCM or COSMO, '
+                f'not {pcmobj.method}')
+        if getattr(pcmobj, 'lowmem_intermediate_storage', False):
+            raise NotImplementedError(
+                f'cpcm_solver={solver!r} factorises the dense K; '
+                'it cannot be combined with lowmem_intermediate_storage')
+    return solver
+
+def cpcm_factorize(K, solver):
+    '''Factorise the C-PCM / COSMO matrix K = S (symmetric positive definite).
+
+    'cholesky':    K = L L^T in FP64.
+    'cholesky_ir': the Jacobi-scaled K factorised in FP32; each solve is then
+                   refined against the FP64 K until the FP64 stopping test
+                   holds IN THE SCALED SYSTEM (see cpcm_solve), so the result
+                   is FP64-accurate.
+                   Keeps the FP64 K (n^2 doubles) and the FP32 factor
+                   (n^2 floats).
+    '''
+    if solver == 'cholesky':
+        L = cupy.linalg.cholesky(K)
+        if not bool(cupy.isfinite(L).all()):
+            raise RuntimeError('C-PCM K is not positive definite in FP64')
+        return {'K_chol': L}
+    assert solver == 'cholesky_ir'
+    scale = 1.0 / cupy.sqrt(cupy.diag(K))
+    Ks = (K * scale[:,None]) * scale[None,:]
+    # The stopping test runs in the scaled system: the cavity's K has a few huge
+    # diagonal entries (points whose switching function is nearly zero), which
+    # make an unscaled ||K||_inf bound vacuous for every other row.
+    Ks_norm_inf = float(cupy.abs(Ks).sum(axis=1).max())
+    L32 = cupy.linalg.cholesky(Ks.astype(numpy.float32))
+    Ks = None
+    out = {'K': K, 'K_scale': scale, 'Ks_norm_inf': Ks_norm_inf,
+           'ir_stats': {'solves': 0, 'iters': 0, 'max_iters': 0, 'fp64_fallback': None}}
+    if bool(cupy.isfinite(L32).all()):
+        out['K_chol32'] = L32
+    else:
+        # the scaled K is not positive definite in FP32: FP64 Cholesky
+        out['K_chol'] = cupy.linalg.cholesky(K)
+        out['ir_stats']['fp64_fallback'] = 'FP32 Cholesky failed'
+    return out
+
+def _chol_solve(L, b):
+    y = solve_triangular(L, b, lower=True, overwrite_b=False, check_finite=False)
+    return solve_triangular(L, y, trans='T', lower=True, overwrite_b=True,
+                            check_finite=False)
+
+def cpcm_solve(intermediates, b):
+    '''K^{-1} b for a factorisation from cpcm_factorize. K is symmetric, so
+    K^{-T} b is the same solve.'''
+    L = intermediates.get('K_chol')
+    if L is not None:
+        return _chol_solve(L, b)
+    K = intermediates['K']
+    L32 = intermediates['K_chol32']
+    scale = intermediates['K_scale']
+    stats = intermediates['ir_stats']
+    if b.ndim == 2:
+        scale = scale[:,None]
+    def solve32(r):
+        z = _chol_solve(L32, (r * scale).astype(numpy.float32))
+        return z.astype(numpy.float64) * scale
+    n = K.shape[0]
+    # dsposv's test, applied to the Jacobi-scaled system Ks xs = bs (Ks = D K D,
+    # x = D xs, bs = D b, D = scale), per column:
+    #   ||D r||_inf <= ||x / D||_inf * ||Ks||_inf * eps * sqrt(n)
+    tol = intermediates['Ks_norm_inf'] * numpy.finfo(numpy.float64).eps * numpy.sqrt(n)
+    x = solve32(b)
+    for it in range(CPCM_IR_MAX_ITER + 1):
+        r = b - K.dot(x)
+        rmax = cupy.abs(r * scale).max(axis=0)
+        xmax = cupy.abs(x / scale).max(axis=0)
+        if bool((rmax <= tol * xmax).all()):
+            stats['solves'] += 1
+            stats['iters'] += it
+            stats['max_iters'] = max(stats['max_iters'], it)
+            return x
+        if it < CPCM_IR_MAX_ITER:
+            x += solve32(r)
+    # refinement did not converge: switch to FP64 Cholesky for this and every later solve
+    intermediates['K_chol'] = cupy.linalg.cholesky(K)
+    stats['fp64_fallback'] = f'refinement not converged in {CPCM_IR_MAX_ITER} iterations'
+    return _chol_solve(intermediates['K_chol'], b)
+
 class PCM(lib.StreamObject):
     from gpu4pyscf.lib.utils import to_gpu, device, to_cpu
 
@@ -469,6 +569,7 @@ class PCM(lib.StreamObject):
         'frozen_dm0_for_finite_difference_without_response',
         'equilibrium_solvation', 'e', 'v', 'v_grids_n',
         'lowmem_intermediate_storage', 'surface_discretization_method',
+        'cpcm_solver', 'grad_ds_fp32', 'esp_cache', 'esp_cache_memory_fraction', 'grad_qv_fp32',
     }
 
     def __init__(self, mol):
@@ -487,6 +588,23 @@ class PCM(lib.StreamObject):
         self.lowmem_intermediate_storage = False
         self.eps = 78.3553
         self.surface_discretization_method = "SWIG"
+        # C-PCM / COSMO only. 'lu' (default): dense LU, as before. 'cholesky':
+        # FP64 Cholesky (K = S is symmetric positive definite). 'cholesky_ir':
+        # FP32 Cholesky refined to the FP64 stopping test (cpcm_solve).
+        self.cpcm_solver = 'lu'
+        # C-PCM / COSMO gradient: evaluate the dS kernel's erf/exp in FP32,
+        # accumulating in FP64 (grad.pcm.left_multiply_dS_offdiagonal_fp32).
+        self.grad_ds_fp32 = False
+        # Surface integrals (mu nu|g) kept on the device after build, so each SCF
+        # cycle's potential and Fock contribution are two passes over them
+        # (gpu4pyscf.solvent._esp_cache): None (default, int1e_grids every
+        # cycle), 'fp64' or 'fp32' (FP32 storage, FP64 sums). Not built, and
+        # recorded, if it does not fit this fraction of the free memory.
+        self.esp_cache = None
+        self.esp_cache_memory_fraction = 0.5
+        # Gradient: the derivative surface integrals of grad_qv with FP32 Rys recursion and root sums
+        # (FP64 roots, geometry and accumulation). Any PCM model.
+        self.grad_qv_fp32 = False
 
         self.max_cycle = 20
         self.conv_tol = 1e-7
@@ -511,6 +629,14 @@ class PCM(lib.StreamObject):
         if getattr(self, "lowmem_intermediate_storage", False):
             logger.info(self, 'running in lowmem PCM mode, nothing with size O(ngrids**2) is stored')
             logger.info(self, 'Iterative inversion convergence tolerance for K^-1 = %s', self.conv_tol)
+        if getattr(self, 'cpcm_solver', 'lu') != 'lu':
+            logger.info(self, 'cpcm_solver = %s', self.cpcm_solver)
+        if getattr(self, 'grad_ds_fp32', False):
+            logger.info(self, 'grad_ds_fp32 = True')
+        if getattr(self, 'esp_cache', None) is not None:
+            logger.info(self, 'esp_cache = %s', self.esp_cache)
+        if getattr(self, 'grad_qv_fp32', False):
+            logger.info(self, 'grad_qv_fp32 = True')
         return self
 
     def build(self, ng=None):
@@ -538,7 +664,13 @@ class PCM(lib.StreamObject):
         else:
             raise RuntimeError(f"Unknown implicit solvent model: {self.method}")
 
-        if not getattr(self, "lowmem_intermediate_storage", False):
+        solver = check_cpcm_solver(self)
+        if solver != 'lu':
+            _, K = get_D_S(self.surface, with_S = True, with_D = False)
+            self._intermediates.update(cpcm_factorize(K, solver))
+            self._intermediates['f_epsilon'] = f_epsilon
+            K = None
+        elif not getattr(self, "lowmem_intermediate_storage", False):
             if self.method.upper() in ['C-PCM', 'CPCM', 'COSMO']:
                 _, S = get_D_S(self.surface, with_S = True, with_D = False)
                 K = S
@@ -599,6 +731,20 @@ class PCM(lib.StreamObject):
         intopt.build(1e-14)
         self.intopt = intopt
 
+        tier = getattr(self, 'esp_cache', None)
+        if tier is not None:
+            from gpu4pyscf.solvent import _esp_cache
+            if tier not in _esp_cache.ESP_CACHE_TIERS:
+                raise ValueError(f'esp_cache must be None or one of '
+                                 f'{_esp_cache.ESP_CACHE_TIERS}, not {tier!r}')
+            cache, info = _esp_cache.build_esp_cache(
+                mol, grid_coords, charge_exp**2, intopt, tier,
+                self.esp_cache_memory_fraction)
+            self._intermediates['esp_cache'] = cache
+            self._intermediates['esp_cache_info'] = info
+            if cache is None:
+                logger.warn(self, 'esp_cache not built: %s', info['reason'])
+
         int2c2e = mol._add_suffix('int2c2e')
         fakemol_charge = gto.fakemol_for_charges(grid_coords.get(), expnt=charge_exp.get()**2)
         fakemol_nuc = gto.fakemol_for_charges(atom_coords)
@@ -630,10 +776,7 @@ class PCM(lib.StreamObject):
 
         b = self.left_multiply_R(v_right.T)
         q = self.left_solve_K(b).T
-
-        vK_1 = self.left_solve_K(v_right.T, K_transpose = True)
-        qt = self.left_multiply_R(vK_1, R_transpose = True).T
-        q_sym = (q + qt)/2.0
+        q_sym = self._symmetrize_q(q, v_right)
 
         vmat = self._get_vmat(q_sym)
         epcm = 0.5 * cupy.dot(v_left[0], q_sym[0])
@@ -670,10 +813,7 @@ class PCM(lib.StreamObject):
 
         b = self.left_multiply_R(v_grids.T)
         q = self.left_solve_K(b).T
-
-        vK_1 = self.left_solve_K(v_grids.T, K_transpose = True)
-        qt = self.left_multiply_R(vK_1, R_transpose = True).T
-        q_sym = (q + qt)/2.0
+        q_sym = self._symmetrize_q(q, v_grids)
 
         return q_sym[0], q[0]
 
@@ -699,6 +839,10 @@ class PCM(lib.StreamObject):
         '''
         return electrostatic potential on surface
         '''
+        cache = (self._intermediates or {}).get('esp_cache')
+        if cache is not None:
+            from gpu4pyscf.solvent import _esp_cache
+            return _esp_cache.esp(cache, self.intopt, dms)
         charge_exp  = self.surface['charge_exp']
         grid_coords = self.surface['grid_coords']
         v_grids_e = int1e_grids(self.mol, grid_coords, dm = dms, charge_exponents = charge_exp**2, intopt = self.intopt)
@@ -706,6 +850,10 @@ class PCM(lib.StreamObject):
 
     def _get_vmat(self, q):
         assert q.ndim == 2
+        cache = (self._intermediates or {}).get('esp_cache')
+        if cache is not None:
+            from gpu4pyscf.solvent import _esp_cache
+            return -_esp_cache.vmat(cache, self.intopt, q)
         charge_exp  = self.surface['charge_exp']
         grid_coords = self.surface['grid_coords']
         vmat = -int1e_grids(self.mol, grid_coords, charges = q, charge_exponents = charge_exp**2, intopt = self.intopt)
@@ -761,13 +909,20 @@ class PCM(lib.StreamObject):
 
         b = self.left_multiply_R(v_grids.T)
         q = self.left_solve_K(b).T
-
-        vK_1 = self.left_solve_K(v_grids.T, K_transpose = True)
-        qt = self.left_multiply_R(vK_1, R_transpose = True).T
-        q_sym = (q + qt)/2.0
+        q_sym = self._symmetrize_q(q, v_grids)
 
         vmat = self._get_vmat(q_sym)
         return vmat.reshape(out_shape)
+
+    def _symmetrize_q(self, q, v_grids):
+        '''0.5 * (K^-1 R + R^T K^-T) v, given q = K^-1 R v. For C-PCM / COSMO,
+        K = S is symmetric and R = -f_epsilon I, so R^T K^-T v = K^-1 R v = q
+        and the transposed solve is skipped.'''
+        if self.if_method_in_CPCM_category:
+            return q
+        vK_1 = self.left_solve_K(v_grids.T, K_transpose = True)
+        qt = self.left_multiply_R(vK_1, R_transpose = True).T
+        return (q + qt)/2.0
 
     @property
     def if_method_in_CPCM_category(self):
@@ -799,6 +954,8 @@ class PCM(lib.StreamObject):
 
     def left_solve_K(self, right_vector, K_transpose = False):
         ''' K^{-1} @ right_vector '''
+        if check_cpcm_solver(self) != 'lu':
+            return cpcm_solve(self._intermediates, right_vector)
         if not getattr(self, "lowmem_intermediate_storage", False):
             K_LU       = self._intermediates['K_LU']
             K_LU_pivot = self._intermediates['K_LU_pivot']

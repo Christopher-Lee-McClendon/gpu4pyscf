@@ -125,7 +125,7 @@ def get_int3c1e_ip(mol, grids, charge_exponents, intopt):
 
     return int3c_ip1, int3c_ip2
 
-def get_int3c1e_ip1_charge_contracted(mol, grids, charge_exponents, charges, intopt):
+def get_int3c1e_ip1_charge_contracted(mol, grids, charge_exponents, charges, intopt, fp32=False):
     omega = mol.omega
     assert omega >= 0.0, "Short-range one electron integrals with GPU acceleration is not implemented."
 
@@ -176,7 +176,10 @@ def get_int3c1e_ip1_charge_contracted(mol, grids, charge_exponents, charges, int
 
         int1e_angular_slice = cp.zeros([3, j1-j0, i1-i0], order='C')
 
-        err = libgint.GINTfill_int3c1e_ip1_charge_contracted(
+        # fp32: FP32 Rys recursion and root sums, FP64 roots, geometry and accumulation
+        fill = (libgint.GINTfill_int3c1e_ip1_charge_contracted_fp32 if fp32
+                else libgint.GINTfill_int3c1e_ip1_charge_contracted)
+        err = fill(
             ctypes.cast(stream.ptr, ctypes.c_void_p),
             intopt.bpcache,
             ctypes.cast(grids.data.ptr, ctypes.c_void_p),
@@ -266,7 +269,7 @@ def get_int3c1e_ip1_density_contracted(mol, grids, charge_exponents, dm, intopt)
 
     return ip1_per_atom
 
-def get_int3c1e_ip2_density_contracted(mol, grids, charge_exponents, dm, intopt):
+def get_int3c1e_ip2_density_contracted(mol, grids, charge_exponents, dm, intopt, fp32=False):
     omega = mol.omega
     assert omega >= 0.0, "Short-range one electron integrals with GPU acceleration is not implemented."
 
@@ -342,7 +345,9 @@ def get_int3c1e_ip2_density_contracted(mol, grids, charge_exponents, dm, intopt)
             # n_pair_sum_per_thread = nao_cart # or larger number gaurantees one thread processes one grid and all pairs of the same type
             n_pair_sum_per_thread = nao_cart
 
-            err = libgint.GINTfill_int3c1e_ip2_density_contracted(
+            fill = (libgint.GINTfill_int3c1e_ip2_density_contracted_fp32 if fp32
+                    else libgint.GINTfill_int3c1e_ip2_density_contracted)
+            err = fill(
                 ctypes.cast(stream.ptr, ctypes.c_void_p),
                 intopt.bpcache,
                 ctypes.cast(grids_slice.data.ptr, ctypes.c_void_p),
@@ -442,7 +447,7 @@ def get_int3c1e_ip2_charge_contracted(mol, grids, charge_exponents, charges, gri
 
         output[np.ix_(range(n_atom), range(3), intopt._ao_idx[i0:i1], intopt._ao_idx[j0:j1])] += int1e_angular_slice.transpose(0,1,3,2)
 
-def get_int3c1e_ip1_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt):
+def get_int3c1e_ip1_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt, fp32=False):
     dm = cp.asarray(dm)
     if dm.ndim == 3:
         if dm.shape[0] > 2:
@@ -453,19 +458,20 @@ def get_int3c1e_ip1_charge_and_density_contracted(mol, grids, charge_exponents, 
     assert dm.ndim == 2
     assert dm.shape[0] == dm.shape[1] and dm.shape[0] == mol.nao
 
-    int3c_ip1 = get_int3c1e_ip1_charge_contracted(mol, grids, charge_exponents, charges, intopt)
+    int3c_ip1 = get_int3c1e_ip1_charge_contracted(mol, grids, charge_exponents, charges, intopt, fp32)
     int3c_ip1 = cp.einsum('xij,ij->xi', int3c_ip1, dm)
     return int3c_ip1
 
-def get_int3c1e_ip2_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt):
+def get_int3c1e_ip2_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt, fp32=False):
     assert charges.ndim == 1 and charges.shape[0] == grids.shape[0]
     charges = cp.asarray(charges).astype(np.float64)
 
-    int3c_ip2 = get_int3c1e_ip2_density_contracted(mol, grids, charge_exponents, dm, intopt)
+    int3c_ip2 = get_int3c1e_ip2_density_contracted(mol, grids, charge_exponents, dm, intopt, fp32)
     int3c_ip2 = int3c_ip2 * charges
     return int3c_ip2
 
-def int1e_grids_ip1(mol, grids, charge_exponents=None, dm=None, charges=None, direct_scf_tol=1e-13, intopt=None):
+def int1e_grids_ip1(mol, grids, charge_exponents=None, dm=None, charges=None, direct_scf_tol=1e-13, intopt=None,
+                    fp32=False):
     r'''
     This function computes
     $$\left(\frac{\partial}{\partial \vec{A}} \mu \middle| \frac{1}{|\vec{r} - \vec{C}|} \middle| \nu\right)$$
@@ -483,6 +489,10 @@ def int1e_grids_ip1(mol, grids, charge_exponents=None, dm=None, charges=None, di
     $$\sum_{\mu \in \{\text{AO of atom A}\}} \sum_\nu^{n_{ao}} D_{\mu\nu}
         \left(\frac{\partial}{\partial \vec{A}} \mu \middle| \frac{1}{|\vec{r} - \vec{C}|} \middle| \nu\right)$$
     The output dimension is $(n_{atom}, 3, n_{charge})$.
+
+    fp32=True (charge contracted, with or without dm): the Rys recursion and root sums in FP32, with the
+    roots, the geometry and every accumulation in FP64 (GINTfill_int3c1e_ip1_charge_contracted_fp32).
+    Refused for the other contractions.
     '''
     assert grids is not None
 
@@ -495,18 +505,21 @@ def int1e_grids_ip1(mol, grids, charge_exponents=None, dm=None, charges=None, di
         assert hasattr(intopt, "density_offset"), "Please call build() function for VHFOpt object first."
         assert not intopt.aosym
 
+    if fp32 and charges is None:
+        raise NotImplementedError('int1e_grids_ip1 fp32=True needs charges')
     if dm is None and charges is None:
         return get_int3c1e_ip(mol, grids, charge_exponents, intopt)[0]
     elif charges is not None:
         if dm is not None:
-            return get_int3c1e_ip1_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt)
+            return get_int3c1e_ip1_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt, fp32)
         else:
-            return get_int3c1e_ip1_charge_contracted(mol, grids, charge_exponents, charges, intopt)
+            return get_int3c1e_ip1_charge_contracted(mol, grids, charge_exponents, charges, intopt, fp32)
     else:
         assert dm is not None
         return get_int3c1e_ip1_density_contracted(mol, grids, charge_exponents, dm, intopt)
 
-def int1e_grids_ip2(mol, grids, charge_exponents=None, dm=None, charges=None, direct_scf_tol=1e-13, intopt=None):
+def int1e_grids_ip2(mol, grids, charge_exponents=None, dm=None, charges=None, direct_scf_tol=1e-13, intopt=None,
+                    fp32=False):
     r'''
     This function computes
     $$\left(\mu \middle| \frac{\partial}{\partial \vec{C}} \frac{1}{|\vec{r} - \vec{C}|} \middle| \nu\right)$$
@@ -522,6 +535,10 @@ def int1e_grids_ip2(mol, grids, charge_exponents=None, dm=None, charges=None, di
     If charges is not None and dm is None, the function computes the following contraction:
     $$\sum_{C}^{n_{charge}} q_C \left(\mu \middle| \frac{\partial}{\partial \vec{C}} \frac{1}{|\vec{r} - \vec{C}|} \middle| \nu\right)$$
     Notice that this summation should not be performed if the charges originates from different atomic centers.
+
+    fp32=True (density contracted, with or without charges): the Rys recursion and root sums in FP32,
+    with the roots, the geometry and every accumulation in FP64
+    (GINTfill_int3c1e_ip2_density_contracted_fp32). Refused for the other contractions.
     '''
     assert grids is not None
 
@@ -534,13 +551,15 @@ def int1e_grids_ip2(mol, grids, charge_exponents=None, dm=None, charges=None, di
         assert hasattr(intopt, "density_offset"), "Please call build() function for VHFOpt object first."
         assert not intopt.aosym
 
+    if fp32 and dm is None:
+        raise NotImplementedError('int1e_grids_ip2 fp32=True needs dm')
     if dm is None and charges is None:
         return get_int3c1e_ip(mol, grids, charge_exponents, intopt)[1]
     elif dm is not None:
         if charges is not None:
-            return get_int3c1e_ip2_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt)
+            return get_int3c1e_ip2_charge_and_density_contracted(mol, grids, charge_exponents, dm, charges, intopt, fp32)
         else:
-            return get_int3c1e_ip2_density_contracted(mol, grids, charge_exponents, dm, intopt)
+            return get_int3c1e_ip2_density_contracted(mol, grids, charge_exponents, dm, intopt, fp32)
     else:
         assert charges is not None
         output = cp.zeros([1, 3, mol.nao, mol.nao])

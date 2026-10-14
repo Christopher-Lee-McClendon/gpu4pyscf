@@ -23,6 +23,7 @@ add_library(gint SHARED
   #nr_fill_ao_ints.cu
   nr_fill_ao_int3c1e.cu
   nr_fill_ao_int3c1e_ip.cu
+  nr_fill_ao_int3c1e_ip_fp32.cu
   nr_fill_ao_int3c1e_ipip.cu
   nr_fill_ao_int3c2e.cu
   #nr_fill_ao_int3c2e_ip1.cu
