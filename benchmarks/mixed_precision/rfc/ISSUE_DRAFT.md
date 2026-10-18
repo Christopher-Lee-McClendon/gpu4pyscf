@@ -78,7 +78,7 @@ half the stock SCF, gains only 5–7 % while XC gains 2–3×; that explains par
 Negative result on FP64-strong cards. An L40S behaves like the Blackwell card (r2SCAN 1.73, B3LYP 1.52, wB97M-V 2.99).
 An H100 does not: wB97M-V 0.58–0.61 (slower than stock), B3LYP 0.91–1.02, and r2SCAN's 1.32–1.40 comes almost
 entirely from the FP64 AO cache (the FP32 switch alone reads 1.08); we had predicted 1.20 and 1.35 for H100 B3LYP and
-wB97M-V. On an A100, 11 of 12 clean cells were neutral or slower. The code does not detect the device; see question 2.
+wB97M-V. On an A100 (both pods noisy, so clean cells only), the FP32 switch's own effect was neutral or slower in 11 of 12 readings; against stock, wB97M-V reads 0.49–0.60 and B3LYP 0.71–1.09, while r2SCAN stays at 1.14–1.39 because of the AO cache. The code does not detect the device; see question 2.
 
 Accuracy, mixed vs stock from the same guess and settings, at `conv_tol_grad = 3e-6` (the setting we recommend for
 gradients and properties; 14 cells): gradients agree to 1.5e-9 – 2.3e-8 Ha/Bohr for r2SCAN and 6.8e-9 – 2.2e-7 for
@@ -95,11 +95,11 @@ fresh stock SCF and gradient there; warm-step SCFs run 1.41–1.44 and whole opt
 from an arm whose fork-only warm-start rule, not proposed, never fired; the plain arm paid the driver JIT in one cell
 and reads 1.16 and 1.27 where valid).
 
-Correctness of the branch itself (`cb1a2d7` on `38df3b7`, built from source on a Blackwell card at pinned versions,
+Correctness of the branch itself (`2b27755` on `9af748a`, built from source on a Blackwell card at pinned versions,
 under pyscf 2.8, and on a V100 with the single-GPU CI package set, libxc 0.9.0): upstream `test_df_rks`, `test_df_jk`,
 `test_rks` and `test_scf` give 44 passed and 1 skipped on master and on the branch in all three profiles, the 56 new
-tests pass, and stock vs mixed on three molecules agree to |ΔE| ≤ 5.9e-12 Ha with identical cycles. CI fit: the 56
-tests take 132 s on the V100 and the slowest 18.5 s, so none needs the `slow` mark; every class that runs an SCF with
+tests pass, and stock vs mixed on three molecules agree to |ΔE| ≤ 7.3e-12 Ha with identical cycles. CI fit: the 56
+tests take 133 s on the V100 and the slowest 18.55 s, so none needs the `slow` mark; every class that runs an SCF with
 a policy skips on `num_devices > 1`, as upstream's do, so on the 2×T4 runner only the multi-GPU refusal test (patched
 device count) runs; the VV10 NVRTC kernels were validated on sm_70 under CUDA 12, and CUDA 11 was not tested.
 
@@ -128,12 +128,12 @@ device count) runs; the VV10 NVRTC kernels were validated on sm_70 under CUDA 12
    defaults for XC + K (three molecules); the cache is a small part of the gain.
 4. Defaults and the record: are `xc_switch_tol = k_switch_tol = 1e-3` acceptable (the benchmarks used `3e-4` for B3LYP;
    at `1e-3` the switch came after 8 FP32 XC calls instead of 9–11)? The tests assert |ΔE| ≤ 1e-8 Ha against stock
-   where the measured agreement is ≤ 5.9e-12 Ha: is that the right CI margin? And is `mf.mixed_precision_record` (a
+   where the measured agreement is ≤ 7.3e-12 Ha: is that the right CI margin? And is `mf.mixed_precision_record` (a
    dict, `None` before `kernel()`) with two new `KohnShamDFT._keys` entries fine, or would you prefer the logger only?
 
 ## Links
 
-- Code: [`chris-lee-mc/gpu4pyscf@mixed-precision-upstream`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream), head `cb1a2d78`, four commits on master `38df3b7`, +3054/−39 over ten files.
+- Code: [`chris-lee-mc/gpu4pyscf@mixed-precision-upstream-on-9af748a`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream-on-9af748a), head `2b27755`, four commits on master `9af748a`, +3054/−39 over ten files.
 - Evidence: [`chris-lee-mc/gpu4pyscf@mixed-precision-evidence`, `benchmarks/mixed_precision/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-evidence/benchmarks/mixed_precision):
   `native/verify_native.py` recomputes every figure above from the per-run data, `native/CLAIMS.md` states what the data do and do not support, and `validation/` holds the GPU validation records.
 - A PR is drafted. We know v1.9.0 is in flight (#944) and that `numint` and `df_jk` have moved recently (e.g. #955),

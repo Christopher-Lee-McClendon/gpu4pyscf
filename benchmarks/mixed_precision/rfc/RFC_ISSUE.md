@@ -15,8 +15,8 @@ the result must still be an FP64 SCF, with stock convergence and stock gradients
 
 We have an implementation on a fork and would like to know whether the maintainers want it, and
 in what shape, before opening a PR. The code is
-[`chris-lee-mc/gpu4pyscf@mixed-precision-upstream`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream)
-(four commits on master `38df3b7`; +3054/−39 over ten files, of which the first PR we would
+[`chris-lee-mc/gpu4pyscf@mixed-precision-upstream-on-9af748a`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-upstream-on-9af748a)
+(four commits on master `9af748a`; +3054/−39 over ten files, of which the first PR we would
 propose is +1033/−17 over six). The evidence package is
 [`chris-lee-mc/gpu4pyscf@mixed-precision-evidence`, `benchmarks/mixed_precision/`](https://github.com/chris-lee-mc/gpu4pyscf/tree/mixed-precision-evidence/benchmarks/mixed_precision)
 (upstream master plus that directory): its `native/verify_native.py` recomputes every benchmark
@@ -56,7 +56,7 @@ UKS/ROKS/GKS and spin ≠ 0; multi-GPU; the second-order solver (`mf.newton()`);
 range-separated and NLC functionals; `k` without density fitting or on a functional without exact
 exchange; with `vv10`, a functional without exactly one VV10 term. The 56 tests are unmarked, skip
 on multi-GPU hosts (`num_devices > 1`, upstream's pattern; the refusal is tested with a patched
-device count), and pass on a V100 with upstream's single-GPU CI package set (libxc 0.9.0, 132 s)
+device count), and pass on a V100 with upstream's single-GPU CI package set (libxc 0.9.0, 133 s)
 and under pyscf 2.8.
 
 ## How precision is controlled
@@ -119,7 +119,7 @@ pod's two replicates were both DEGRADED; on clean cells they read 0.05–0.09 hi
 1.52, wB97M-V 2.99). On an H100 it does not: wB97M-V 0.58–0.61 (i.e. slower), B3LYP 0.91–1.02, and
 r2SCAN's 1.32–1.40 comes almost entirely from the FP64 AO cache (the FP32 switch itself reads
 1.08). The pre-registered predictions for H100 B3LYP and wB97M-V were 1.20 and 1.35 (MODEL-MISS,
-far below). On an A100, 11 of 12 clean cells were neutral or slower. **The code does not detect
+far below). On an A100 (both pods noisy, so clean cells only), the FP32 switch's own effect was neutral or slower in 11 of 12 readings; against stock, wB97M-V reads 0.49–0.60 and B3LYP 0.71–1.09, while r2SCAN stays at 1.14–1.39 because of the AO cache. **The code does not detect
 the device**; see question 2.
 
 **Accuracy** (CLAIMS C4, PREREG-8 A1/A2; mixed M against stock S run from the same guess with the
@@ -169,11 +169,11 @@ not proposed; it never fired, so that arm's steps and cycles equal the plain arm
 plain arm's first SCF paid the driver JIT in one cell. Where the plain arm is valid it reads 1.16
 (paracetamol B3LYP) and 1.27 (celecoxib r2SCAN).
 
-**Correctness of the master-based branch** (fork `cb1a2d7` on `38df3b7`, built from source, three
+**Correctness of the master-based branch** (fork `2b27755` on `9af748a`, built from source, three
 profiles; `validation/` in the package): upstream `test_df_rks`, `test_df_jk`, `test_rks` and
 `test_scf` give 44 passed and 1 skipped on master and the same on the branch, at the lock's pins,
 under pyscf 2.8 and on the V100; the 56 new tests pass on all three profiles; stock vs mixed on
-three molecules agrees to \|ΔE\| ≤ 5.9e-12 Ha (4.1e-12 Ha under pyscf 2.8) with identical cycle
+three molecules agrees to \|ΔE\| ≤ 7.3e-12 Ha (3.2e-12 Ha under pyscf 2.8) with identical cycle
 counts.
 
 ## What is not claimed

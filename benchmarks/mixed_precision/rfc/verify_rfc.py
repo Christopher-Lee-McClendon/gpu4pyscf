@@ -284,6 +284,19 @@ ALLOWLIST = {
     "2.8": "upstream unittest.yml multi-gpu job: pip install pyscf==2.8; g4psrc r6 pro6000-pyscf28 ran 2.8.0",
     "0.9": "upstream unittest.yml single-gpu job: gpu4pyscf-libxc-cuda12x 0.9.0; g4psrc r6 v100-ci ran it",
     "1.17": "upstream requirements / multi-gpu job: scipy 1.17, not tested (r4 Amendment 1; r5 and r6 kept 1.15.3)",
+    # g4psrc r7 (three profiles on fork 2b27755, master 9af748a, built from source); engine repo
+    # docs/upstream/PORT-PLAN-upstream-source-build.md, r7 RESULT (commit cb7226b7)
+    "39145384949": "g4psrc r7 pro6000-lock run id (engine repo; RUN_ID=39145384949-1-63e5de60)",
+    "39148544740": "g4psrc r7 v100-ci run id (engine repo; RUN_ID=39148544740-1-63e5de60)",
+    "39151512144": "g4psrc r7 pro6000-pyscf28 run id (engine repo; RUN_ID=39151512144-2-63e5de60)",
+    "7.3e-12": "g4psrc r7 pro6000-lock: trio max |dE| 7.28e-12 Ha (celecoxib b3lyp)",
+    "3.2e-12": "g4psrc r7 pro6000-pyscf28: trio max |dE| 3.18e-12 Ha (celecoxib b3lyp)",
+    "133": "g4psrc r7 v100-ci: new_tests wall_s 133.1",
+    "18.55": "g4psrc r7 v100-ci: slowest test 18.55 s, test_vv10_paracetamol (durations, verbatim)",
+    "0.71": "PREREG-rfcbench-2 part 3 / CLAIMS C3: A100 clean B3LYP mixed/stock low 0.711 (X4 celecoxib)",
+    "1.09": "PREREG-rfcbench-2 part 3: A100 clean B3LYP mixed/stock high 1.091 (X4 paracetamol)",
+    "1.14": "PREREG-rfcbench-2 part 3: A100 clean r2SCAN mixed/stock low 1.143 (X4 celecoxib)",
+    "1.39": "PREREG-rfcbench-2 part 3: A100 clean r2SCAN mixed/stock high 1.390 (X4r paracetamol)",
     # version strings: the measurement stack (requirements.lock) and upstream's recommended cuTENSOR pairings
     "14.1": "requirements.lock / ENVIRONMENT.md: cupy-cuda12x==14.1.1",
     "2.0": "upstream README: CuPy 13.3.0 + cuTENSOR 2.0.2, the pairing pyscf/gpu4pyscf#518 recommends",
